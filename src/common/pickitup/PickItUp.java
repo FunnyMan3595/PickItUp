@@ -132,7 +132,6 @@ public class PickItUp {
 
         // Check to see if the player has permission to place there.
         if (player.canPlayerEdit(x, y, z, face, fakeStack)) {
-            System.out.println("Can edit.");
             if (face == 0) { --y; }
             if (face == 1) { ++y; }
             if (face == 2) { --z; }
@@ -143,12 +142,10 @@ public class PickItUp {
             // Check to see if the target is a valid place to put the block.
             if (player.worldObj.canPlaceEntityOnSide(id, x, y, z, false, face,
                                                   player, fakeStack)) {
-                System.out.print("Can place.");
                 if (placeAt(block, player, x, y, z)) {
-                    System.out.print("Did place.");
                     clearBlockHeld(player);
+                    return;
                 }
-                return;
             }
         }
 
