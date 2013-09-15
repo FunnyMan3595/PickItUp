@@ -127,7 +127,6 @@ public class PickItUp {
                            boolean force) {
         int id = block.getInteger("packed_id");
         int meta = block.getInteger("packed_meta");
-        System.out.println(id + ":" + meta + "@" + x + "," + y + "," + z + "/" + face);
         ItemStack fakeStack = new ItemStack(id, 1, meta);
 
         // Check to see if the player has permission to place there.
