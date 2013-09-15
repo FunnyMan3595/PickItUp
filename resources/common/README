@@ -1,0 +1,24 @@
+PickItUp: See that block?  Pick it up!
+
+PickItUp allowes you to pick up and transport most blocks, including complex
+ones like chests and furnaces.
+
+
+While sneaking, right click with an empty hand will pick up a block.  While you
+hold the block, you will not be able to stop sneaking, switch to another hotbar
+slot, or move the block in your inventory.
+(If you find a way around these safeguards, the block will be placed in world
+ and the item will decay in your inventory.)
+
+Right clicking again will place the block.  Don't forget that you're sneaking!
+Open your doors BEFORE you Pick It Up!
+
+
+This mod uses a whitelist to determine what blocks can be picked up.  By
+default, the list contains all vanilla blocks that drop themselves when mined
+with a stone pick (or an empty hand).  Note that this means you can move dirt
+and cobblestone, but not grass or smooth stone.
+
+Nearly all mod blocks should transport just fine, but will need to be added to
+the whitelist.  As always, take a backup of your world (or be ready to lose it)
+before testing anything new, just to be safe.
