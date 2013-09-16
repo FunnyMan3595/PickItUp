@@ -6,7 +6,10 @@ import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.network.NetworkMod;
 import cpw.mods.fml.common.registry.GameRegistry;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.block.Block;
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.common.Configuration;
 import net.minecraftforge.common.MinecraftForge;
@@ -26,14 +29,17 @@ import net.minecraft.world.World;
      name = "PickItUp",
      version = "{conf:VERSION}")
 @NetworkMod(serverSideRequired = false,
-            clientSideRequired = true
+            clientSideRequired = true,
             //channels = { "pickitup" },
             //packetHandler = pickitup.PacketHandler.class,
-            //connectionHandler = pickitup.ConnectionHandler.class)
-            )
+            connectionHandler = pickitup.ConnectionHandler.class)
 public class PickItUp {
     public static final int DEFAULT_ITEM_ID = 5925;
     public static int ITEM_ID = DEFAULT_ITEM_ID;
+
+    public static final int DEFAULT_DW_INDEX = 27;
+    public static int DW_INDEX = DEFAULT_DW_INDEX;
+
     public static final String HELD_TAG = "PickItUp_held";
     public static Item heldBlock = null;
 
@@ -58,11 +64,18 @@ public class PickItUp {
 
 
         // Fetch the item ID for the held block.
-        ITEM_ID = config.get("pickitup.heldBlock",
+        ITEM_ID = config.get("heldBlock",
                              config.CATEGORY_ITEM,
                              DEFAULT_ITEM_ID,
                              "Shifted ID (what actually shows up ingame)"
                             ).getInt(DEFAULT_ITEM_ID);
+
+        // Fetch the DataWatcher ID for the held block.
+        DW_INDEX = config.get("holdingBlockDataWatcherIndex",
+                              config.CATEGORY_GENERAL,
+                              DEFAULT_DW_INDEX,
+                              "The index on EntityPlayer's DataWatcher used to store whether they are holding a block."
+                             ).getInt(DEFAULT_DW_INDEX);
 
         // Register with the item registry.
         heldBlock = new Item(ITEM_ID - 256);
@@ -269,6 +282,7 @@ public class PickItUp {
     }
 
     // Returns the tag for the block the player is currently holding, if any.
+    @SuppressWarnings("unchecked")
     public static NBTTagCompound getBlockHeld(EntityPlayer player) {
         NBTTagCompound player_persisted = getPersistedTag(player);
         if (!player_persisted.hasKey(HELD_TAG)) {
@@ -280,13 +294,25 @@ public class PickItUp {
 
     // Is the player currently holding a block?
     public static boolean isHoldingBlock(EntityPlayer player) {
-        return getBlockHeld(player) != null;
+        try {
+            return player.getDataWatcher().getWatchableObjectByte(DW_INDEX) != 0;
+        } catch (NullPointerException e) {
+            player.getDataWatcher().addObject(DW_INDEX, new Byte((byte) 0));
+            return false;
+        }
+    }
+
+    // As isHoldingBlock, but for the local player.
+    @SideOnly(Side.CLIENT)
+    public static boolean amIHoldingABlock() {
+        return isHoldingBlock(Minecraft.getMinecraft().thePlayer);
     }
 
     // Sets the block the player is currently holding.
     public static void setBlockHeld(EntityPlayer player, NBTTagCompound block) {
         NBTTagCompound player_persisted = getPersistedTag(player);
         player_persisted.setCompoundTag(HELD_TAG, block);
+        player.getDataWatcher().updateObject(27, new Byte((byte)1));
     }
 
     // Remove the stored data after the player set down (or otherwise returned
@@ -296,6 +322,7 @@ public class PickItUp {
         if (player_persisted.hasKey(HELD_TAG)) {
             player_persisted.removeTag(HELD_TAG);
         }
+        player.getDataWatcher().updateObject(27, new Byte((byte)0));
 
         ItemStack itemInHand = player.getHeldItem();
         if (itemInHand != null && itemInHand.itemID == ITEM_ID) {

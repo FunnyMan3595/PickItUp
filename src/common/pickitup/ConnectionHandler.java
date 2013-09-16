@@ -1,5 +1,7 @@
 package pickitup;
 
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.INetworkManager;
 import net.minecraft.network.NetLoginHandler;
 import net.minecraft.network.packet.NetHandler;
@@ -16,7 +18,15 @@ public class ConnectionHandler implements IConnectionHandler {
      * @param netHandler
      * @param manager
      */
+    @SuppressWarnings("unchecked")
     public void playerLoggedIn(Player player, NetHandler netHandler, INetworkManager manager) {
+        EntityPlayer eplayer = (EntityPlayer) player;
+        NBTTagCompound player_persisted = PickItUp.getPersistedTag(eplayer);
+        byte block_held = 0;
+        if (player_persisted.hasKey(PickItUp.HELD_TAG)) {
+            block_held = 1;
+        }
+        eplayer.getDataWatcher().addObject(PickItUp.DW_INDEX, (Byte)block_held);
     }
 
     /**
