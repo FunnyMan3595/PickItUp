@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.zip.*;
 
 @IFMLLoadingPlugin.TransformerExclusions("pickitup.core.")
+@IFMLLoadingPlugin.MCVersion("1.5.2")
 public class CoreMod implements IFMLLoadingPlugin {
     public String[] getLibraryRequestClass() {
         return new String[] {};
