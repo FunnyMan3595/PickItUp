@@ -30,8 +30,8 @@ import net.minecraft.world.World;
      version = "{conf:VERSION}")
 @NetworkMod(serverSideRequired = false,
             clientSideRequired = true,
-            //channels = { "pickitup" },
-            //packetHandler = pickitup.PacketHandler.class,
+            channels = { "pickitup" },
+            packetHandler = pickitup.PacketHandler.class,
             connectionHandler = pickitup.ConnectionHandler.class)
 public class PickItUp {
     public static final int DEFAULT_ITEM_ID = 5925;
@@ -297,7 +297,6 @@ public class PickItUp {
         try {
             return player.getDataWatcher().getWatchableObjectByte(DW_INDEX) != 0;
         } catch (NullPointerException e) {
-            player.getDataWatcher().addObject(DW_INDEX, new Byte((byte) 0));
             return false;
         }
     }
