@@ -31,8 +31,8 @@ import net.minecraft.world.World;
 @NetworkMod(serverSideRequired = false,
             clientSideRequired = true,
             channels = { "pickitup" },
-            packetHandler = pickitup.PacketHandler.class,
-            connectionHandler = pickitup.ConnectionHandler.class)
+            packetHandler = pickitup.PacketHandler.class)
+            //connectionHandler = pickitup.ConnectionHandler.class)
 public class PickItUp {
     public static final int DEFAULT_ITEM_ID = 5925;
     public static int ITEM_ID = DEFAULT_ITEM_ID;
@@ -81,7 +81,9 @@ public class PickItUp {
         heldBlock = new Item(ITEM_ID - 256);
         GameRegistry.registerItem(heldBlock, "Held Block");
 
+        // Register our listeners.
         MinecraftForge.EVENT_BUS.register(new EventListener());
+        GameRegistry.registerPlayerTracker(new PlayerTracker());
     }
 
     public static boolean onWhitelist(int id, int meta) {
