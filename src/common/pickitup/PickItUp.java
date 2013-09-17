@@ -413,6 +413,12 @@ public class PickItUp {
 
             EntityPlayer player = (EntityPlayer) event.entity;
 
+            // If keepInventory is true, you can hold a block through a respawn.
+            if (player.worldObj.getGameRules().getGameRuleBooleanValue("keepInventory")) {
+                return;
+            }
+
+
             NBTTagCompound block_held = getBlockHeld(player);
             if (block_held != null) {
                 forcePlace(block_held, player);
