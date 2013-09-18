@@ -68,6 +68,9 @@ public class FakeWorld implements IBlockAccess {
             rb.setRenderBoundsFromBlock(block);
             Tessellator.instance.setColorRGBA(255, 255, 255, 192);
             Tessellator.instance.disableColor();
+            // Hax: custom blocks will change their textures, but the default
+            // RenderBlocks does not! So, put us back in a sane state:
+            Minecraft.getMinecraft().renderEngine.resetBoundTexture();
             rb.renderBlockAllFaces(block, where.posX, where.posY, where.posZ);
             Tessellator.instance.draw();
             Tessellator.instance.setTranslation(0D,0D,0D);
