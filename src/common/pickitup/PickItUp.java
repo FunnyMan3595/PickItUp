@@ -13,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.common.Configuration;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -332,9 +333,76 @@ public class PickItUp {
         }
     }
 
+    @SideOnly(Side.SERVER)
+    public static void ensureBlockOnHotbar(EntityPlayer player) {
+        if (!isHoldingBlock(player)) {
+            // They're not holding a block.
+            return;
+        }
+
+        if (player.getHeldItem() != null && player.getHeldItem().itemID == ITEM_ID) {
+            // They've already got it in their hand.
+            return;
+        }
+
+        // Search through the hotbar for either the held block or an empty slot.
+        int hotbar_found_index = -1;
+        boolean hotbar_found_block = false;
+        for (int i=0; i<9; i++) {
+            ItemStack item = player.inventory.mainInventory[i];
+            if (item == null) {
+                if (hotbar_found_index == -1) {
+                    hotbar_found_index = i;
+                }
+            } else if (item.itemID == ITEM_ID) {
+                hotbar_found_index = i;
+                hotbar_found_block = true;
+                break;
+            }
+        }
+
+        if (!hotbar_found_block) {
+            // Not on the hotbar.  Find one, and put it there.
+
+            // Search through main inventory.
+            int found_index = -1;
+            boolean found_block = false;
+            for (int i=9; i<36; i++) {
+                ItemStack item = player.inventory.mainInventory[i];
+                if (item == null) {
+                    if (found_index == -1) {
+                        found_index = i;
+                    }
+                } else if (item.itemID == ITEM_ID) {
+                    found_index = i;
+                    found_block = true;
+                    break;
+                }
+            }
+
+            if (found_block) {
+                if (hotbar_found_index == -1) {
+                    // Pick an arbitrary slot to swap with.
+                    hotbar_found_index = 8;
+                }
+
+                // Swap it onto the hotbar.
+                ItemStack temp = player.inventory.mainInventory[hotbar_found_index];
+                player.inventory.mainInventory[hotbar_found_index] = player.inventory.mainInventory[found_index];
+                player.inventory.mainInventory[found_index] = temp;
+                player.addChatMessage("That doesn't fit in your pack.");
+            } else {
+                if (hotbar_found_index == -1) {
+                    if (found_index == -1) {
+                    }
+                }
+            }
+        }
+    }
+
     public static class EventListener {
-        // This is called when the blayer left or right clicks on a block.
-        // (Or right clicks in midair, but we ignore that one.)
+        // This is called when the player right clicks on a block.
+        // (Or a couple other conditions, but we ignore them.)
         //
         // We use it to handle picking up and placing blocks under normal
         // conditions.
@@ -345,33 +413,24 @@ public class PickItUp {
         // Highest priority is left free, just in case someone *really* needs to
         // override us.
         @ForgeSubscribe(priority=EventPriority.HIGH)
+        @SideOnly(Side.SERVER)
         public void onInteract(PlayerInteractEvent event) {
-            if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_AIR)
+            if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_AIR
+             || event.action == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK
+             || event.isCanceled())
             {
                 // We can ignore this.
                 return;
             }
 
-            if (event.entityPlayer.worldObj.isRemote) {
-                return;
-            }
-
             NBTTagCompound block_held = getBlockHeld(event.entityPlayer);
             if (block_held != null) {
-                if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) {
-                    // Try to place the block if it was a right click.
-                    tryToPlace(block_held, event.entityPlayer, event.x, event.y, event.z,
-                               event.face, !event.entityPlayer.isSneaking());
-                }
+                // Try to place the block.
+                tryToPlace(block_held, event.entityPlayer, event.x, event.y, event.z,
+                           event.face, !event.entityPlayer.isSneaking());
 
                 // Prevent any further processing.
-                // Note that this prevents breaking blocks while holding one!
                 event.setCanceled(true);
-                return;
-            }
-
-            if (event.action == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK) {
-                // No block held, so we won't tamper with left clicks.
                 return;
             }
 
@@ -406,6 +465,7 @@ public class PickItUp {
         // We use it to force the held block to be placed in world before
         // the player's items drop.
         @ForgeSubscribe
+        @SideOnly(Side.SERVER)
         public void onDeath(LivingDeathEvent event) {
             if (!(event.entity instanceof EntityPlayer)) {
                 return;
@@ -430,11 +490,71 @@ public class PickItUp {
         //
         // We use it to destroy the display item should it end up on the ground.
         @ForgeSubscribe
+        @SideOnly(Side.SERVER)
         public void onPickup(EntityItemPickupEvent event) {
             if (event.item.getEntityItem().itemID == ITEM_ID) {
                 // When the player would pick up this item, it's deleted instead.
                 event.setCanceled(true);
                 event.item.setDead();
+            }
+
+            if (isHoldingBlock(event.player)) {
+                // Put the block back if they're still holding it.
+                ensureBlockOnHotbar(event.player);
+            }
+        }
+
+        // This is called whenever a player throws an item on the ground.
+        //
+        // We use it to avoid dropping the display item.
+        @ForgeSubscribe
+        @SideOnly(Side.SERVER)
+        public void onThrow(ItemTossEvent event) {
+            if (event.item.getEntityItem().itemID == ITEM_ID) {
+                // Already removed from their inventory. so this
+                // destroys the item.
+                event.setCanceled(true);
+
+                if (isHoldingBlock(event.player)) {
+                    // Put the block back if they're still holding it.
+                    ensureBlockOnHotbar(event.player);
+                }
+            }
+        }
+
+        // This is called whenever damage is inflicted on an entity.
+        //
+        // We use it to reduce attack damage while holding a block.
+        //
+        // Low priority is used here to come after any mods that set the damage
+        // directly, as we're applying a 50% damage penalty.
+        @ForgeSubscribe(priority=EventPriority.LOW)
+        @SuppressWarnings("unchecked")
+        public void onDamage(LivingHurtEvent event) {
+            if (!event.source.damageType.equals("player")) {
+                return;
+            }
+
+            EntityPlayer player = (EntityPlayer) ((EntityDamageSource) event.source).getEntity();
+            // ammount [sic]
+            if (isHoldingBlock(player) && event.ammount > 0) {
+                event.ammount /= 2;
+                if (event.amount == 0) {
+                    event.ammount = 1;
+                }
+            }
+        }
+
+        // This is called to determine how quickly a player can break a block.
+        //
+        // We use it to make block-breaking with a held block slow.
+        //
+        // Low priority is used here to come after any mods that set the speed
+        // directly, as we're applying a 50% speed penalty.
+        @ForgeSubscribe(priority=EventPriority.LOW)
+        public void digSpeed(PlayerEvent.BreakSpeed event) {
+            if (isHoldingBlock(event.player)) {
+                event.newSpeed /= 2.0f;
             }
         }
     }
