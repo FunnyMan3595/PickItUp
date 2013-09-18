@@ -23,8 +23,12 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.util.EntityDamageSource;
+import net.minecraft.util.EnumMovingObjectType;
 import net.minecraft.util.MathHelper;
+import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 
 @Mod(modid = "PickItUp",
@@ -281,10 +285,50 @@ public class PickItUp {
         }
     }
 
+    // As getBlockHeld, but for the local player.
+    @SideOnly(Side.CLIENT)
+    public static NBTTagCompound getMyBlockHeld() {
+        return getBlockHeld(Minecraft.getMinecraft().thePlayer);
+    }
+
     // As isHoldingBlock, but for the local player.
     @SideOnly(Side.CLIENT)
     public static boolean amIHoldingABlock() {
         return isHoldingBlock(Minecraft.getMinecraft().thePlayer);
+    }
+
+    // Where should we render the block that's currently held?
+    @SideOnly(Side.CLIENT)
+    public static ChunkCoordinates getHeldRenderCoords(float partialTick) {
+        Minecraft mc = Minecraft.getMinecraft();
+        EntityPlayer player = mc.thePlayer;
+
+        double reach = (double)mc.playerController.getBlockReachDistance();
+        MovingObjectPosition target = mc.renderViewEntity.rayTrace(reach, 0);
+        if (target != null) {
+            // We're looking at a block, so draw it placed there.
+            int x = target.blockX;
+            int y = target.blockY;
+            int z = target.blockZ;
+            int face = target.sideHit;
+            if (face == 0) { --y; }
+            if (face == 1) { ++y; }
+            if (face == 2) { --z; }
+            if (face == 3) { ++z; }
+            if (face == 4) { --x; }
+            if (face == 5) { ++x; }
+
+            return new ChunkCoordinates(x, y, z);
+        } else {
+            // Not looking at a block, just put it somewhere in front of us.
+            Vec3 look = player.getLook(partialTick);
+            Vec3 spot = player.getPosition(partialTick).addVector(look.xCoord * 3.5,
+                                                                  look.yCoord * 3.5,
+                                                                  look.zCoord * 3.5);
+            return new ChunkCoordinates(MathHelper.floor_double(spot.xCoord),
+                                        MathHelper.floor_double(spot.yCoord),
+                                        MathHelper.floor_double(spot.zCoord));
+        }
     }
 
     // Sets the block the player is currently holding.

@@ -8,6 +8,7 @@ import org.objectweb.asm.commons.*;
 public class HookAdder extends AdviceAdapter {
     public int hook; 
     public static final int HOOK_SNEAK = 0;
+    public static final int HOOK_RENDER = 1;
 
     public HookAdder(int which_hook, MethodVisitor delegate, int access, String name, String desc) {
         super(Opcodes.ASM4, delegate, access, name, desc);
@@ -22,7 +23,7 @@ public class HookAdder extends AdviceAdapter {
             this.sneak = this.gameSettings.keyBindSneak.pressed;
 
             into this:
-            this.sneak = this.gameSettings.keyBindSneak.pressed || PickItUp.amIHoldingABlock();
+            this.sneak = this.gameSettings.keyBindSneak.pressed || ClientProxy.amIHoldingABlock();
             */
             if (hook == HOOK_SNEAK && opcode == PUTFIELD
                                    && owner.equals(HookFinder.mifo_class)
@@ -43,7 +44,19 @@ public class HookAdder extends AdviceAdapter {
 
     protected void onMethodEnter() {
         try {
+            Class client_proxy = ClientProxy.class;
+
             // No hooks here yet.  :)
+            if (hook == HOOK_RENDER) {
+                /* We're adding this code:
+                ClientProxy.renderHeldBlock(par1);
+                */
+                loadArgs(0, 1); // our own argument #1
+                invokeStatic(Type.getType(client_proxy),
+                             new Method("renderHeldBlock",
+                                        "(F)V"));
+                System.out.println("Hook added!");
+            }
         } catch (Exception e) {
             System.out.println("PickItUp: HOOK FAILED!");
             e.printStackTrace();

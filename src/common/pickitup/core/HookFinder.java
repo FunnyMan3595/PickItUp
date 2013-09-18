@@ -21,18 +21,27 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
     public static final String sneak = "%conf:OBF_SNEAK%";
     // net.minecraft.util.MovementInputFromOptions
     public static final String mifo_class = "%conf:OBF_MIFO%";
+    // void MovementInputFromOptions.updatePlayerMoveState()
+    public static final String update_move = "%conf:OBF_UPDATE_MOVE%()V";
+
+    // net.minecraft.client.renderer.EntityRenderer
+    public static final String entity_renderer_class = "%conf:OBF_ENTITYRENDERER%";
+    //void EntityRenderer.renderHand
+    public static final String render_hand = "%conf:OBF_RENDER_HAND%(FI)V";
 
     public HookFinder() {
         super(Opcodes.ASM4);
 
         class_table = new HashMap<String, Map<String, Integer>>();
 
-        // void updatePlayerMoveState()
-        String update_move = "%conf:OBF_UPDATE_MOVE%()V";
 
         Map<String, Integer> mifo = new HashMap<String, Integer>();
         mifo.put(update_move, HookAdder.HOOK_SNEAK);
         class_table.put(mifo_class, mifo);
+
+        Map<String, Integer> er = new HashMap<String, Integer>();
+        er.put(render_hand, HookAdder.HOOK_RENDER);
+        class_table.put(entity_renderer_class, er);
     }
 
     public byte[] transform(String name, String transformedName, byte[] bytes) {
