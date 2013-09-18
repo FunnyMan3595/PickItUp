@@ -243,7 +243,7 @@ public class PickItUp {
                                                  fakeStack);
             Block.blocksList[id].onPostBlockPlaced(world, x, y, z, meta);
 
-            if (data != null) {
+            if (data != null && !data.hasNoTags()) {
                 TileEntity te = TileEntity.createAndLoadEntity(data);
                 world.setBlockTileEntity(x, y, z, te);
             }
@@ -270,7 +270,11 @@ public class PickItUp {
     public static NBTTagCompound getBlockHeld(EntityPlayer player) {
         NBTTagCompound player_persisted = getPersistedTag(player);
         if (!player_persisted.hasKey(HELD_TAG)) {
-            return null;
+            try {
+                return player.getDataWatcher().getWatchableObjectItemStack(DW_INDEX).getTagCompound();
+            } catch (NullPointerException e) {
+                return null;
+            }
         } else {
             return player_persisted.getCompoundTag(HELD_TAG);
         }
@@ -279,7 +283,7 @@ public class PickItUp {
     // Is the player currently holding a block?
     public static boolean isHoldingBlock(EntityPlayer player) {
         try {
-            return player.getDataWatcher().getWatchableObjectByte(DW_INDEX) != 0;
+            return player.getDataWatcher().getWatchableObjectItemStack(DW_INDEX).stackSize > 0;
         } catch (NullPointerException e) {
             return false;
         }
@@ -331,11 +335,30 @@ public class PickItUp {
         }
     }
 
+    // Builds an ItemStack containing the data about the block held.
+    public static ItemStack buildHeldItemStack(EntityPlayer player) {
+        NBTTagCompound block = getBlockHeld(player);
+
+        if (block == null) {
+            return new ItemStack(0, 0, 0);
+        }
+
+        // Build an ItemStack for the block held.
+        int id = block.getInteger("packed_id");
+        int meta = block.getInteger("packed_meta");
+        ItemStack syncStack = new ItemStack(id, 1, meta);
+        syncStack.setTagCompound(block);
+
+        return syncStack;
+    }
+
     // Sets the block the player is currently holding.
     public static void setBlockHeld(EntityPlayer player, NBTTagCompound block) {
         NBTTagCompound player_persisted = getPersistedTag(player);
         player_persisted.setCompoundTag(HELD_TAG, block);
-        player.getDataWatcher().updateObject(27, new Byte((byte)1));
+
+        // Sync the block held.
+        player.getDataWatcher().updateObject(27, buildHeldItemStack(player));
     }
 
     // Remove the stored data after the player set down (or otherwise returned
@@ -345,7 +368,7 @@ public class PickItUp {
         if (player_persisted.hasKey(HELD_TAG)) {
             player_persisted.removeTag(HELD_TAG);
         }
-        player.getDataWatcher().updateObject(27, new Byte((byte)0));
+        player.getDataWatcher().updateObject(27, new ItemStack(0, 0, 0));
     }
 
     public static class EventListener {

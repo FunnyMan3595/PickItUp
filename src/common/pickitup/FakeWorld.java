@@ -50,7 +50,7 @@ public class FakeWorld implements IBlockAccess {
 
             NBTTagCompound data = block_tag.getCompoundTag("packed_data");
             te = null;
-            if (data != null) {
+            if (data != null && !data.hasNoTags()) {
                 te = TileEntity.createAndLoadEntity(data);
             }
         }
@@ -158,7 +158,7 @@ public class FakeWorld implements IBlockAccess {
      * Gets the biome for a given set of x/z coordinates
      */
     public BiomeGenBase getBiomeGenForCoords(int i, int j) {
-        return null;
+        return BiomeGenBase.plains;
     }
 
     @SideOnly(Side.CLIENT)
