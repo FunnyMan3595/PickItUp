@@ -13,9 +13,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.common.Configuration;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.item.ItemTossEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.EventPriority;
 import net.minecraftforge.event.ForgeSubscribe;
@@ -23,6 +23,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EntityDamageSource;
 import net.minecraft.util.MathHelper;
 import net.minecraft.world.World;
 
@@ -35,14 +36,10 @@ import net.minecraft.world.World;
             packetHandler = pickitup.PacketHandler.class)
             //connectionHandler = pickitup.ConnectionHandler.class)
 public class PickItUp {
-    public static final int DEFAULT_ITEM_ID = 5925;
-    public static int ITEM_ID = DEFAULT_ITEM_ID;
-
     public static final int DEFAULT_DW_INDEX = 27;
     public static int DW_INDEX = DEFAULT_DW_INDEX;
 
     public static final String HELD_TAG = "PickItUp_held";
-    public static Item heldBlock = null;
 
     public static Configuration config = null;
 
@@ -64,23 +61,12 @@ public class PickItUp {
                                         // broken.
 
 
-        // Fetch the item ID for the held block.
-        ITEM_ID = config.get("heldBlock",
-                             config.CATEGORY_ITEM,
-                             DEFAULT_ITEM_ID,
-                             "Shifted ID (what actually shows up ingame)"
-                            ).getInt(DEFAULT_ITEM_ID);
-
         // Fetch the DataWatcher ID for the held block.
         DW_INDEX = config.get("holdingBlockDataWatcherIndex",
                               config.CATEGORY_GENERAL,
                               DEFAULT_DW_INDEX,
                               "The index on EntityPlayer's DataWatcher used to store whether they are holding a block."
                              ).getInt(DEFAULT_DW_INDEX);
-
-        // Register with the item registry.
-        heldBlock = new Item(ITEM_ID - 256);
-        GameRegistry.registerItem(heldBlock, "Held Block");
 
         // Register our listeners.
         MinecraftForge.EVENT_BUS.register(new EventListener());
@@ -122,15 +108,6 @@ public class PickItUp {
 
         // Save the block in the player's NBT data.
         setBlockHeld(player, item_tag);
-
-        // Make an ItemStack to display in the player's hand.  Note that this
-        // is PURELY for display purposes, the data stored on the player is
-        // what's actually used, to avoid any exploits surrounding the item.
-        ItemStack packedBlock = new ItemStack(ITEM_ID, 1, 0);
-        packedBlock.setTagCompound(item_tag);
-
-        // Put the item in the player's hand.
-        player.setCurrentItemOrArmor(0, packedBlock);
 
         // Delete the block from the world.
         world.removeBlockTileEntity(x, y, z);
@@ -325,79 +302,6 @@ public class PickItUp {
             player_persisted.removeTag(HELD_TAG);
         }
         player.getDataWatcher().updateObject(27, new Byte((byte)0));
-
-        ItemStack itemInHand = player.getHeldItem();
-        if (itemInHand != null && itemInHand.itemID == ITEM_ID) {
-            // Delete the inventory item.
-            player.setCurrentItemOrArmor(0, null);
-        }
-    }
-
-    @SideOnly(Side.SERVER)
-    public static void ensureBlockOnHotbar(EntityPlayer player) {
-        if (!isHoldingBlock(player)) {
-            // They're not holding a block.
-            return;
-        }
-
-        if (player.getHeldItem() != null && player.getHeldItem().itemID == ITEM_ID) {
-            // They've already got it in their hand.
-            return;
-        }
-
-        // Search through the hotbar for either the held block or an empty slot.
-        int hotbar_found_index = -1;
-        boolean hotbar_found_block = false;
-        for (int i=0; i<9; i++) {
-            ItemStack item = player.inventory.mainInventory[i];
-            if (item == null) {
-                if (hotbar_found_index == -1) {
-                    hotbar_found_index = i;
-                }
-            } else if (item.itemID == ITEM_ID) {
-                hotbar_found_index = i;
-                hotbar_found_block = true;
-                break;
-            }
-        }
-
-        if (!hotbar_found_block) {
-            // Not on the hotbar.  Find one, and put it there.
-
-            // Search through main inventory.
-            int found_index = -1;
-            boolean found_block = false;
-            for (int i=9; i<36; i++) {
-                ItemStack item = player.inventory.mainInventory[i];
-                if (item == null) {
-                    if (found_index == -1) {
-                        found_index = i;
-                    }
-                } else if (item.itemID == ITEM_ID) {
-                    found_index = i;
-                    found_block = true;
-                    break;
-                }
-            }
-
-            if (found_block) {
-                if (hotbar_found_index == -1) {
-                    // Pick an arbitrary slot to swap with.
-                    hotbar_found_index = 8;
-                }
-
-                // Swap it onto the hotbar.
-                ItemStack temp = player.inventory.mainInventory[hotbar_found_index];
-                player.inventory.mainInventory[hotbar_found_index] = player.inventory.mainInventory[found_index];
-                player.inventory.mainInventory[found_index] = temp;
-                player.addChatMessage("That doesn't fit in your pack.");
-            } else {
-                if (hotbar_found_index == -1) {
-                    if (found_index == -1) {
-                    }
-                }
-            }
-        }
     }
 
     public static class EventListener {
@@ -413,13 +317,16 @@ public class PickItUp {
         // Highest priority is left free, just in case someone *really* needs to
         // override us.
         @ForgeSubscribe(priority=EventPriority.HIGH)
-        @SideOnly(Side.SERVER)
         public void onInteract(PlayerInteractEvent event) {
             if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_AIR
              || event.action == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK
              || event.isCanceled())
             {
                 // We can ignore this.
+                return;
+            }
+
+            if (event.entityPlayer.worldObj.isRemote) {
                 return;
             }
 
@@ -465,7 +372,6 @@ public class PickItUp {
         // We use it to force the held block to be placed in world before
         // the player's items drop.
         @ForgeSubscribe
-        @SideOnly(Side.SERVER)
         public void onDeath(LivingDeathEvent event) {
             if (!(event.entity instanceof EntityPlayer)) {
                 return;
@@ -485,42 +391,6 @@ public class PickItUp {
             }
         }
 
-        // This is called whenever a player would pick up an item from the
-        // ground.
-        //
-        // We use it to destroy the display item should it end up on the ground.
-        @ForgeSubscribe
-        @SideOnly(Side.SERVER)
-        public void onPickup(EntityItemPickupEvent event) {
-            if (event.item.getEntityItem().itemID == ITEM_ID) {
-                // When the player would pick up this item, it's deleted instead.
-                event.setCanceled(true);
-                event.item.setDead();
-            }
-
-            if (isHoldingBlock(event.player)) {
-                // Put the block back if they're still holding it.
-                ensureBlockOnHotbar(event.player);
-            }
-        }
-
-        // This is called whenever a player throws an item on the ground.
-        //
-        // We use it to avoid dropping the display item.
-        @ForgeSubscribe
-        @SideOnly(Side.SERVER)
-        public void onThrow(ItemTossEvent event) {
-            if (event.item.getEntityItem().itemID == ITEM_ID) {
-                // Already removed from their inventory. so this
-                // destroys the item.
-                event.setCanceled(true);
-
-                if (isHoldingBlock(event.player)) {
-                    // Put the block back if they're still holding it.
-                    ensureBlockOnHotbar(event.player);
-                }
-            }
-        }
 
         // This is called whenever damage is inflicted on an entity.
         //
@@ -539,7 +409,7 @@ public class PickItUp {
             // ammount [sic]
             if (isHoldingBlock(player) && event.ammount > 0) {
                 event.ammount /= 2;
-                if (event.amount == 0) {
+                if (event.ammount == 0) {
                     event.ammount = 1;
                 }
             }
@@ -553,7 +423,7 @@ public class PickItUp {
         // directly, as we're applying a 50% speed penalty.
         @ForgeSubscribe(priority=EventPriority.LOW)
         public void digSpeed(PlayerEvent.BreakSpeed event) {
-            if (isHoldingBlock(event.player)) {
+            if (isHoldingBlock(event.entityPlayer)) {
                 event.newSpeed /= 2.0f;
             }
         }
