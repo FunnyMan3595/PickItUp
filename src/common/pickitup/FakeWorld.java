@@ -22,6 +22,7 @@ import net.minecraftforge.common.ForgeDirection;
 @SideOnly(Side.CLIENT)
 public class FakeWorld implements IBlockAccess {
     public static final FakeWorld instance = new FakeWorld();
+    public final Vec3Pool vecPool = new Vec3Pool(10, 100);
     public final RenderBlocks rb = new RenderBlocks(this);
 
     public NBTTagCompound old_block = null;
@@ -195,7 +196,7 @@ public class FakeWorld implements IBlockAccess {
      * Return the Vec3Pool object for this world.
      */
     public Vec3Pool getWorldVec3Pool() {
-        return null;
+        return vecPool;
     }
 
     /**
