@@ -37,7 +37,7 @@ import net.minecraft.world.World;
 
 @Mod(modid = "PickItUp",
      name = "PickItUp",
-     version = "{conf:VERSION}")
+     version = "%conf:VERSION%")
 @NetworkMod(serverSideRequired = false,
             clientSideRequired = true,
             channels = { "pickitup" },
