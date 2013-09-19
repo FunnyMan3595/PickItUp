@@ -75,16 +75,22 @@ public class PickItUp {
 
 
         // Fetch the DataWatcher ID for the held block.
-        DW_INDEX = config.get("holdingBlockDataWatcherIndex",
-                              config.CATEGORY_GENERAL,
+        DW_INDEX = config.get(config.CATEGORY_GENERAL,
+                              "holdingBlockDataWatcherIndex",
                               DEFAULT_DW_INDEX,
                               DW_INDEX_DOC).getInt(DEFAULT_DW_INDEX);
 
         // Fetch the whitelist.
-        String whitelist_string = config.get("blockWhitelist",
-                                             config.CATEGORY_GENERAL,
+        String whitelist_string = config.get(config.CATEGORY_GENERAL,
+                                             "blockWhitelist",
                                              DEFAULT_WHITELIST,
                                              WHITELIST_DOC).getString();
+
+        try {
+            config.save();
+        } catch (RuntimeException e) {
+            System.out.println("PickItUp: Unable to save config!");
+        }
 
         for (String whitelist_entry : whitelist_string.split(",")) {
             BlockRange range = new BlockRange(whitelist_entry);
