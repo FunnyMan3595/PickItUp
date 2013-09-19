@@ -1,5 +1,9 @@
 package pickitup;
 
+import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.Mod;
@@ -41,7 +45,12 @@ import net.minecraft.world.World;
             //connectionHandler = pickitup.ConnectionHandler.class)
 public class PickItUp {
     public static final int DEFAULT_DW_INDEX = 27;
+    public static final String DW_INDEX_DOC = "The index on EntityPlayer's DataWatcher used to store whether they are holding a block.";
     public static int DW_INDEX = DEFAULT_DW_INDEX;
+
+    public static final String DEFAULT_WHITELIST = "3-6,12,13,15,17,22-25,27,28,29:0-5,33:0-5,35,37-46,48,50,53,54,57-63,65-70,72,76,77,80-88,91,93,96,98,101-109,112-115,117,118,121,122,123,124,125-128,133-136,139-152,154-159,170-175";
+    public static final String WHITELIST_DOC = "The comma-separated list of blocks allowed to be picked up.\nThe format is [-]id[-max_id][:meta[-max_meta]], where [] denotes an optional section.\nEntries starting with - are explicit blacklists, which can be used to override later whitelist entries.  Similarly, earlier whitelist entries will override later blacklist entries.\nThe default whitelist contains all blocks which drop themselves when mined with a stone pick (or an empty hand), minus a few that caused problems, e.g. lilly pads, which are very hard to put down again.  A few manufactured blocks were also added, like blocks of gold.";
+    public static Vector<BlockRange> whitelist = new Vector<BlockRange>();
 
     public static final String HELD_TAG = "PickItUp_held";
 
@@ -69,8 +78,20 @@ public class PickItUp {
         DW_INDEX = config.get("holdingBlockDataWatcherIndex",
                               config.CATEGORY_GENERAL,
                               DEFAULT_DW_INDEX,
-                              "The index on EntityPlayer's DataWatcher used to store whether they are holding a block."
-                             ).getInt(DEFAULT_DW_INDEX);
+                              DW_INDEX_DOC).getInt(DEFAULT_DW_INDEX);
+
+        // Fetch the whitelist.
+        String whitelist_string = config.get("blockWhitelist",
+                                             config.CATEGORY_GENERAL,
+                                             DEFAULT_WHITELIST,
+                                             WHITELIST_DOC).getString();
+
+        for (String whitelist_entry : whitelist_string.split(",")) {
+            BlockRange range = new BlockRange(whitelist_entry);
+            if (range.valid) {
+                whitelist.add(range);
+            }
+        }
 
         // Register our listeners.
         MinecraftForge.EVENT_BUS.register(new EventListener());
@@ -83,7 +104,13 @@ public class PickItUp {
             return false;
         }
 
-        return true;
+        for (BlockRange range : whitelist) {
+            if (range.matches(id, meta)) {
+                return range.allow;
+            }
+        }
+
+        return false;
     }
 
     // --- The meat of block pick up and placement. ---
@@ -493,6 +520,65 @@ public class PickItUp {
             if (isHoldingBlock(event.entityPlayer)) {
                 event.newSpeed /= 2.0f;
             }
+        }
+    }
+
+    public static class BlockRange {
+        public static final Pattern REGEX = Pattern.compile("^(-)?([0-9]+)(?:-([0-9]+))?(?::([0-9]+)(?:-([0-9]+))?)?$");
+        public int id_start = -1;
+        public int id_end = -1;
+        public int meta_start = -1;
+        public int meta_end = -1;
+        public boolean allow = true;
+        public boolean valid = true;
+
+        public BlockRange(String init) {
+            Matcher match = REGEX.matcher(init);
+            if (!match.matches()) {
+                System.out.println("Incorrect block range format: " + init);
+                valid = false;
+                return;
+            }
+
+            if ("-".equals(match.group(1))) {
+                allow = false;
+            }
+
+            try {
+                id_start = Integer.parseInt(match.group(2));
+                if (match.group(3) != null) {
+                    id_end = Integer.parseInt(match.group(3));
+                } else {
+                    id_end = id_start;
+                }
+                if (match.group(4) != null) {
+                    meta_start = Integer.parseInt(match.group(4));
+                }
+                if (match.group(5) != null) {
+                    meta_end = Integer.parseInt(match.group(5));
+                } else {
+                    meta_end = meta_start;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Incorrect block range format: " + init);
+                valid = false;
+            }
+        }
+
+        public boolean matches(int id, int meta) {
+            if (id < id_start || id > id_end) {
+                return false;
+            }
+
+            if (meta_start == -1) {
+                return true;
+            }
+
+            if (meta < meta_start || meta > meta_end) {
+                return false;
+            }
+
+            return true;
         }
     }
 }
