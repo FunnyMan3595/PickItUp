@@ -7,6 +7,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.tileentity.TileEntityRenderer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.block.Block;
@@ -60,6 +61,10 @@ public class FakeWorld implements IBlockAccess {
         ChunkCoordinates where = PickItUp.getHeldRenderCoords(partialTick);
         EntityPlayer player = Minecraft.getMinecraft().thePlayer;
         if (where != null) {
+            if (TileEntityRenderer.instance.hasSpecialRenderer(te)) {
+                block = Block.blockNetherQuartz;
+            }
+
             GL11.glEnable(GL11.GL_BLEND);
             Tessellator.instance.startDrawingQuads();
             Vec3 loc = player.getPosition(partialTick);
@@ -106,6 +111,9 @@ public class FakeWorld implements IBlockAccess {
      * Returns the block metadata at coords x,y,z
      */
     public int getBlockMetadata(int i, int j, int k) {
+        if (TileEntityRenderer.instance.hasSpecialRenderer(te)) {
+            return 0;
+        }
         return meta;
     }
 
