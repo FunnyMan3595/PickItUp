@@ -1,11 +1,13 @@
 package pickitup;
 
+import java.lang.reflect.Method;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.network.NetworkMod;
@@ -56,6 +58,8 @@ public class PickItUp {
 
     public static Configuration config = null;
 
+    public static Method getBackpack = null;
+
     @SidedProxy(clientSide="pickitup.ClientProxy",
                 serverSide="pickitup.ServerProxy")
     public static CommonProxy proxy;
@@ -67,6 +71,7 @@ public class PickItUp {
     }
 
     @Mod.Init
+    @SuppressWarnings("unchecked")
     public void init(FMLInitializationEvent event) {
         try {
             config.load();
@@ -102,6 +107,27 @@ public class PickItUp {
         // Register our listeners.
         MinecraftForge.EVENT_BUS.register(new EventListener());
         GameRegistry.registerPlayerTracker(new PlayerTracker());
+
+        // Interface with BetterStorage.
+        if (Loader.isModLoaded("betterstorage")) {
+            try {
+                Class itemBackpack = Class.forName("net.mcft.copy.betterstorage.item.ItemBackpack");
+                getBackpack = itemBackpack.getMethod("getBackpack", EntityPlayer.class);
+            } catch (Exception e) {
+                getBackpack = null;
+            }
+        }
+    }
+
+    public static boolean hasBackpack(EntityPlayer player) {
+        if (getBackpack != null) {
+            try {
+                ItemStack stack = (ItemStack) getBackpack.invoke(null, player);
+                return stack != null;
+            } catch (Exception e) { }
+        }
+
+        return false;
     }
 
     public static boolean onWhitelist(int id, int meta) {
@@ -448,6 +474,16 @@ public class PickItUp {
 
             if (!event.entityPlayer.isSneaking()) {
                 // They're not sneaking, so let htem interact/place normally.
+                return;
+            }
+
+            // BetterStorage integration: Allow the click to fall through to
+            // BetterStorage if it would put a backpack down.
+            //
+            // Ideally, we'd check for it being a valid place to put the
+            // backpack, too, but that's more effort than it's worth.  Submit
+            // a pull request if it really bothers you.  :)
+            if (event.face == 1 && hasBackpack(event.entityPlayer)) {
                 return;
             }
 
