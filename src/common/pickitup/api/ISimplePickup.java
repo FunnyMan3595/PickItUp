@@ -1,4 +1,4 @@
-package pickitup;
+package pickitup.api;
 
 import net.minecraft.entity.player.EntityPlayer;
 
