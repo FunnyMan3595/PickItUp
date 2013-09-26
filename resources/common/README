@@ -1,24 +1,67 @@
+======================================
 PickItUp: See that block?  Pick it up!
+======================================
 
 PickItUp allowes you to pick up and transport most blocks, including complex
 ones like chests and furnaces.
 
 
-While sneaking, right click with an empty hand will pick up a block.  While you
-hold the block, you will not be able to stop sneaking, switch to another hotbar
-slot, or move the block in your inventory.
-(If you find a way around these safeguards, the block will be placed in world
- and the item will decay in your inventory.)
+The Basics
+----------
+While sneaking, right click with an empty hand will pick up a block.  The block
+will not take up an inventory space, but will instead float in front of you,
+ready to be placed.  Additionally, while you hold the block, you will not be
+able to stop sneaking.
 
 Right clicking again will place the block.  Don't forget that you're sneaking!
 Open your doors BEFORE you Pick It Up!
 
 
+Configuration
+-------------
 This mod uses a whitelist to determine what blocks can be picked up.  By
-default, the list contains all vanilla blocks that drop themselves when mined
-with a stone pick (or an empty hand).  Note that this means you can move dirt
-and cobblestone, but not grass or smooth stone.
+default, the list contains only vanilla blocks, but is fairly permissive.  It
+tries to prevent skipping major milestones (iron+ pick, silk touch), disallows
+problematic blocks (lilly pads are a pain to put down), and prevents outright
+cheatiness (i.e. moving bedrock).  PickItUp also respects player edit
+permissions, so it will not allow you to overcome spawn protection or
+adventurer mode.
 
 Nearly all mod blocks should transport just fine, but will need to be added to
 the whitelist.  As always, take a backup of your world (or be ready to lose it)
 before testing anything new, just to be safe.
+
+
+API
+---
+Mod authors may wish to tweak PickItUp's behaviour for their blocks, e.g. to
+ensure that they rotate into the proper position when placed.  PickItUp
+provides two interfaces that can be used to customize its behaviour, both
+in the pickitup.api package:
+
+ISimplePickup
+  This is the easy version, which only provides a hook for final tweaking after
+  a block has been moved and exists in its new location.  You probably want
+  this one for simple rotation fixes.
+
+ICanBePickedUp
+  This is the powerful version, which allows you to customize the entire
+  pickup/putdown process.  No-op versions of all of its methods are available
+  in the source code, for your convenience.
+
+
+You can either register directly with pickitup.PickItUp.addHandler(anInstance)
+or through IMC by sending this message to PickItUp:
+
+``"addHandler": "NameOfYourHandlerClass"``
+
+Note that if you use IMC, you must define a default (zero-argument) constructor
+for the handler, so it can be instantiated.
+
+
+**WARNING**: Only one handler will be used for each id/meta combination.  If
+you need to override someone else's (including one of the default ones), you
+can call pickitup.PickItUp.clearHandlers(id, meta) directly or send this IMC
+message:
+
+``"clearHandlers": new ItemStack(id, 0, meta)``
