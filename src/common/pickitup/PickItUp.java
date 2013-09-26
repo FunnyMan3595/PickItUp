@@ -54,6 +54,8 @@ public class PickItUp {
     public static final String WHITELIST_DOC = "The comma-separated list of blocks allowed to be picked up.\nThe format is [-]id[-max_id][:meta[-max_meta]], where [] denotes an optional section.\nEntries starting with - are explicit blacklists, which can be used to override later whitelist entries.  Similarly, earlier whitelist entries will override later blacklist entries.\nThe default whitelist contains all blocks which drop themselves when mined with a stone pick (or an empty hand), minus a few that caused problems, e.g. lilly pads, which are very hard to put down again.  A few manufactured blocks were also added, like blocks of gold.";
     public static Vector<BlockRange> whitelist = new Vector<BlockRange>();
 
+    public static Vector<ISimplePickup> pickupHandlers = new Vector<ISimplePickup>();
+
     public static final String HELD_TAG = "PickItUp_held";
 
     public static Configuration config = null;
@@ -145,36 +147,114 @@ public class PickItUp {
         return false;
     }
 
+    // --- Handler stuff ---
+
+    // Adds a handler.
+    public static void addHandler(ISimplePickup handler) {
+        pickupHandlers.add(handler);
+    }
+
+    // Removes all handlers that handle a given id/meta.  This is useful for
+    // overriding the default handlers provided by PickItUp.
+    public static void clearHandlers(int id, int meta) {
+        for (int i=0; i<pickupHandlers.size(); i++) {
+            ISimplePickup handler = pickupHandlers.get(i);
+
+            if (handler.handlePickupOf(id, meta)) {
+                pickupHandlers.remove(i);
+
+                // Back up a step, so we don't skip an element.
+                i--;
+            }
+        }
+    }
+
+    // Get the ISimplePickup that will handle this id and meta.  May be null.
+    public static ISimplePickup getSimpleHandler(int id, int meta) {
+        for (ISimplePickup handler : pickupHandlers) {
+            if (handler.handlePickupOf(id, meta)) {
+                return handler;
+            }
+        }
+
+        return null;
+    }
+
+    // Get the ICanBePickedUp that will handle this id and meta.  May be null.
+    public static ICanBePickedUp getFullHandler(int id, int meta) {
+        for (ISimplePickup handler : pickupHandlers) {
+            if (handler instanceof ICanBePickedUp &&
+                handler.handlePickupOf(id, meta)) {
+                return (ICanBePickedUp) handler;
+            }
+        }
+
+        return null;
+    }
+
+
     // --- The meat of block pick up and placement. ---
 
-    public static void pickUpBlock(EntityPlayer player, int x, int y, int z) {
+    public static boolean pickUpBlock(EntityPlayer player, int x, int y, int z) {
         // Basic information about the block.
         World world = player.worldObj;
         int id = world.getBlockId(x, y, z);
         int meta = world.getBlockMetadata(x, y, z);
 
-        // Advanced information about the block, if any.
-        TileEntity te = world.getBlockTileEntity(x, y, z);
-        NBTTagCompound block_data = null;
-        if (te != null) {
-            block_data = new NBTTagCompound();
-            te.writeToNBT(block_data);
+        ICanBePickedUp handler = getFullHandler(id, meta);
+
+        try {
+            if (handler != null && !handler.allowPickup(player, x, y, z)) {
+                // Forbidden by handler.
+                return false;
+            }
+        } catch (Exception e) {
+            System.out.println("PickItUp: Exception in handler.allowPickup: " + e);
         }
 
-        // Pack the block into an NBT tag.
-        NBTTagCompound item_tag = new NBTTagCompound();
-        item_tag.setInteger("packed_id", id);
-        item_tag.setInteger("packed_meta", meta);
-        if (block_data != null) {
-            item_tag.setCompoundTag("packed_data", block_data);
+        NBTTagCompound item_tag = null;
+        if (handler != null) {
+            try {
+                item_tag = handler.pickup(player, x, y, z);
+            } catch (Exception e) {
+                System.out.println("PickItUp: Exception in handler.pickup: " + e);
+            }
+        }
+
+        if (item_tag == null) {
+            // Advanced information about the block, if any.
+            TileEntity te = world.getBlockTileEntity(x, y, z);
+            NBTTagCompound block_data = null;
+            if (te != null) {
+                block_data = new NBTTagCompound();
+                te.writeToNBT(block_data);
+            }
+
+            // Pack the block into an NBT tag.
+            item_tag = new NBTTagCompound();
+            item_tag.setInteger("packed_id", id);
+            item_tag.setInteger("packed_meta", meta);
+            if (block_data != null) {
+                item_tag.setCompoundTag("packed_data", block_data);
+            }
+
+            // Delete the block from the world.
+            world.removeBlockTileEntity(x, y, z);
+            world.setBlock(x, y, z, 0);
+        }
+
+        if (handler != null) {
+            try {
+                item_tag = handler.afterPickup(player, x, y, z, item_tag);
+            } catch (Exception e) {
+                System.out.println("PickItUp: Exception in handler.afterPickup: " + e);
+            }
         }
 
         // Save the block in the player's NBT data.
         setBlockHeld(player, item_tag);
 
-        // Delete the block from the world.
-        world.removeBlockTileEntity(x, y, z);
-        world.setBlock(x, y, z, 0);
+        return true;
     }
 
     // Try to place the block nicely.
@@ -194,10 +274,23 @@ public class PickItUp {
             if (face == 4) { --x; }
             if (face == 5) { ++x; }
 
+            // Consult with the handler.
+            ICanBePickedUp handler = getFullHandler(id, meta);
+
+            Boolean allow = null;
+            try {
+                allow = handler.allowPutdown(player, x, y, z, face, block);
+            } catch (Exception e) {
+                System.out.println("PickItUp: Exception in handler.allowPutdown: " + e);
+            }
+
+            if (allow == null) {
+                allow = player.worldObj.canPlaceEntityOnSide(id, x, y, z, false, face, player, fakeStack);
+            }
+
             // Check to see if the target is a valid place to put the block.
-            if (player.worldObj.canPlaceEntityOnSide(id, x, y, z, false, face,
-                                                  player, fakeStack)) {
-                if (placeAt(block, player, x, y, z)) {
+            if (allow == Boolean.TRUE) {
+                if (placeAt(block, player, x, y, z, face)) {
                     clearBlockHeld(player);
                     return;
                 }
@@ -213,6 +306,10 @@ public class PickItUp {
     // cube to find the best place to put it.  If no valid locations are found,
     // the block is deleted.
     public static void forcePlace(NBTTagCompound block, EntityPlayer player) {
+        int id = block.getInteger("packed_id");
+        int meta = block.getInteger("packed_meta");
+        ICanBePickedUp handler = getFullHandler(id, meta);
+
         World world = player.worldObj;
         int x = MathHelper.floor_double(player.posX);
         int y = MathHelper.floor_double(player.posY);
@@ -256,6 +353,14 @@ public class PickItUp {
                         }
                     }
 
+                    try {
+                        if (handler != null && handler.allowPutdown(player, x+dx, y+dy, z+dz, -1, block) == Boolean.FALSE) {
+                            continue;
+                        }
+                    } catch (Exception e) {
+                        System.out.println("PickItUp: Exception in handler.allowPutdown: " + e);
+                    }
+
                     if (score < best_score) {
                         // This is our new best place.
                         best_dx = dx;
@@ -269,7 +374,7 @@ public class PickItUp {
 
         // If we found a valid spot, use it.
         if (best_score != Double.POSITIVE_INFINITY) {
-            placeAt(block, player, x+best_dx, y+best_dy, z+best_dz);
+            placeAt(block, player, x+best_dx, y+best_dy, z+best_dz, -1);
         }
 
         // If not, well, sucks to be you.  This was a force-place, so the block
@@ -284,27 +389,55 @@ public class PickItUp {
     // Mostly stolen from ItemBlock.placeBlockAt, this handles the nitty-gritty
     // of putting the block in the world, with all appropriate notifications.
     public static boolean placeAt(NBTTagCompound block, EntityPlayer player,
-                           int x, int y, int z) {
+                           int x, int y, int z, int face) {
         World world = player.worldObj;
         int id = block.getInteger("packed_id");
         int meta = block.getInteger("packed_meta");
-        NBTTagCompound data = block.getCompoundTag("packed_data");
-        ItemStack fakeStack = new ItemStack(id, 1, meta);
+        ICanBePickedUp handler = getFullHandler(id, meta);
 
-        if (!world.setBlock(x, y, z, id, meta, 3))
-        {
-            return false;
+        boolean placed = false;
+        if (handler != null) {
+            try {
+                placed = handler.putdown(player, x, y, z, face, block);
+            } catch (Exception e) {
+                System.out.println("PickItUp: Exception in handler.putdown: " + e);
+            }
         }
 
-        if (world.getBlockId(x, y, z) == id)
-        {
-            Block.blocksList[id].onBlockPlacedBy(world, x, y, z, player,
-                                                 fakeStack);
-            Block.blocksList[id].onPostBlockPlaced(world, x, y, z, meta);
+        if (!placed) {
+            NBTTagCompound data = block.getCompoundTag("packed_data");
+            ItemStack fakeStack = new ItemStack(id, 1, meta);
 
-            if (data != null && !data.hasNoTags()) {
-                TileEntity te = TileEntity.createAndLoadEntity(data);
-                world.setBlockTileEntity(x, y, z, te);
+            if (!world.setBlock(x, y, z, id, meta, 3))
+            {
+                return false;
+            }
+
+            if (world.getBlockId(x, y, z) == id)
+            {
+                Block.blocksList[id].onBlockPlacedBy(world, x, y, z, player,
+                                                     fakeStack);
+                Block.blocksList[id].onPostBlockPlaced(world, x, y, z, meta);
+
+                if (data != null && !data.hasNoTags()) {
+                    TileEntity te = TileEntity.createAndLoadEntity(data);
+                    world.setBlockTileEntity(x, y, z, te);
+                }
+            }
+        }
+
+        ISimplePickup simpleHandler = null;
+        if (handler != null) {
+            simpleHandler = handler;
+        } else {
+            simpleHandler = getSimpleHandler(id, meta);
+        }
+
+        if (simpleHandler != null) {
+            try {
+                simpleHandler.afterPutdown(player, x, y, z, face);
+            } catch (Exception e) {
+                System.out.println("PickItUp: Exception in handler.afterPutdown: " + e);
             }
         }
 
@@ -492,14 +625,21 @@ public class PickItUp {
             int id = event.entityPlayer.worldObj.getBlockId(event.x, event.y, event.z);
             int meta = event.entityPlayer.worldObj.getBlockMetadata(event.x, event.y, event.z);
             if (onWhitelist(id, meta)) {
-                // Valid block, PickItUp.
-                pickUpBlock(event.entityPlayer, event.x, event.y, event.z);
-
-                // Prevent any further processing.
-                if (!event.entityPlayer.worldObj.isRemote) {
-                    event.setCanceled(true);
+                ICanBePickedUp handler = getFullHandler(id, meta);
+                if (handler != null &&
+                    !handler.allowPickup(event.entityPlayer, event.x, event.y,
+                                         event.z)) {
+                    return;
                 }
-                return;
+
+                // Valid block, PickItUp.
+                if (pickUpBlock(event.entityPlayer, event.x, event.y, event.z)) {
+                    // Pickup successful, prevent any further processing.
+                    if (!event.entityPlayer.worldObj.isRemote) {
+                        event.setCanceled(true);
+                    }
+                    return;
+                }
             }
         }
 

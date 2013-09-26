@@ -69,6 +69,10 @@ public interface ICanBePickedUp extends ISimplePickup {
     //
     // Return values of true or false will override the default detection.
     // You may also return null, allowing the default detection to decide.
+    //
+    // Note that this DOES NOT override the check to see if the player can edit
+    // blocks.  This is a Good Thing, because it means PickItUp will always
+    // obey world protection.
     public Boolean allowPutdown(EntityPlayer player, int x, int y, int z, int face, NBTTagCompound pickedUp);
 
     // This method allows you to specify custom putdown behaviour.  Very few
