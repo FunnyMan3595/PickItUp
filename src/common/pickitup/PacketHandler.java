@@ -40,6 +40,11 @@ public class PacketHandler implements IPacketHandler
             syncStack.readFromNBT(tag);
         } catch (IOException e) {}
 
-        eplayer.getDataWatcher().addObject(PickItUp.DW_INDEX, syncStack);
+        try {
+            eplayer.getDataWatcher().addObject(PickItUp.DW_INDEX, syncStack);
+        } catch (IllegalArgumentException e) {
+            // Already added, update it instead.
+            eplayer.getDataWatcher().updateObject(PickItUp.DW_INDEX, syncStack);
+        }
     }
 }

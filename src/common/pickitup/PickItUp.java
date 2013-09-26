@@ -44,6 +44,8 @@ import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 
+import static net.minecraftforge.event.Event.Result.*;
+
 @Mod(modid = "PickItUp",
      name = "PickItUp",
      version = "%conf:VERSION%")
@@ -576,24 +578,39 @@ public class PickItUp {
     // Returns the tag for the block the player is currently holding, if any.
     @SuppressWarnings("unchecked")
     public static NBTTagCompound getBlockHeld(EntityPlayer player) {
-        NBTTagCompound player_persisted = getPersistedTag(player);
-        if (!player_persisted.hasKey(HELD_TAG)) {
+        if (player.worldObj.isRemote) {
             try {
-                return player.getDataWatcher().getWatchableObjectItemStack(DW_INDEX).getTagCompound();
+                ItemStack watchedStack = player.getDataWatcher().getWatchableObjectItemStack(DW_INDEX);
+                if (watchedStack.stackSize > 0) {
+                    return watchedStack.getTagCompound();
+                } else {
+                    return null;
+                }
+
             } catch (NullPointerException e) {
                 return null;
             }
         } else {
-            return player_persisted.getCompoundTag(HELD_TAG);
+            NBTTagCompound player_persisted = getPersistedTag(player);
+            if (!player_persisted.hasKey(HELD_TAG)) {
+                return null;
+            } else {
+                return player_persisted.getCompoundTag(HELD_TAG);
+            }
         }
     }
 
     // Is the player currently holding a block?
     public static boolean isHoldingBlock(EntityPlayer player) {
-        try {
-            return player.getDataWatcher().getWatchableObjectItemStack(DW_INDEX).stackSize > 0;
-        } catch (NullPointerException e) {
-            return false;
+        if (player.worldObj.isRemote) {
+            try {
+                return player.getDataWatcher().getWatchableObjectItemStack(DW_INDEX).stackSize > 0;
+            } catch (NullPointerException e) {
+                return false;
+            }
+        } else {
+            NBTTagCompound player_persisted = getPersistedTag(player);
+            return player_persisted.hasKey(HELD_TAG);
         }
     }
 
@@ -695,24 +712,25 @@ public class PickItUp {
         public void onInteract(PlayerInteractEvent event) {
             if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_AIR
              || event.action == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK
-             || event.isCanceled())
+             || event.isCanceled() || event.useBlock == DENY)
             {
                 // We can ignore this.
                 return;
             }
 
-            if (event.entityPlayer.worldObj.isRemote) {
-                return;
-            }
-
             NBTTagCompound block_held = getBlockHeld(event.entityPlayer);
             if (block_held != null) {
-                // Try to place the block.
-                tryToPlace(block_held, event.entityPlayer, event.x, event.y, event.z,
-                           event.face, !event.entityPlayer.isSneaking());
+                if (!event.entityPlayer.worldObj.isRemote) {
+                    // Try to place the block.
+                    tryToPlace(block_held, event.entityPlayer, event.x, event.y, event.z,
+                               event.face, !event.entityPlayer.isSneaking());
+                }
 
-                // Prevent any further processing.
-                event.setCanceled(true);
+                // Prevent most things from happening.  This does not block
+                // the packet from client to server, but it will stop a fence
+                // gate from opening client-side, for instance.
+                event.useBlock = DENY;
+                event.useItem = DENY;
                 return;
             }
 
@@ -740,7 +758,7 @@ public class PickItUp {
             // they are sneaking.  Check to see if the block can be picked up.
             int id = event.entityPlayer.worldObj.getBlockId(event.x, event.y, event.z);
             int meta = event.entityPlayer.worldObj.getBlockMetadata(event.x, event.y, event.z);
-            if (onWhitelist(id, meta)) {
+            if (event.entityPlayer.worldObj.isRemote || onWhitelist(id, meta)) {
                 ICanBePickedUp handler = getFullHandler(id, meta);
                 if (handler != null &&
                     !handler.allowPickup(event.entityPlayer, event.x, event.y,
@@ -750,12 +768,17 @@ public class PickItUp {
 
                 // Valid block, PickItUp.
                 if (pickUpBlock(event.entityPlayer, event.x, event.y, event.z)) {
-                    // Pickup successful, prevent any further processing.
-                    if (!event.entityPlayer.worldObj.isRemote) {
-                        event.setCanceled(true);
-                    }
+                    // Prevent most things from happening.  This does not block
+                    // the packet from client to server, but it will stop a
+                    // fence gate from opening client-side, for instance.
+                    event.useBlock = DENY;
+                    event.useItem = DENY;
                     return;
                 }
+            } else {
+                // Let's just make sure the player isn't left holding a phantom
+                // block.
+                PlayerTracker.updateHeldState(event.entityPlayer);
             }
         }
 

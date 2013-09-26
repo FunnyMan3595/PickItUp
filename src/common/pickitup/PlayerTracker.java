@@ -16,7 +16,12 @@ import net.minecraft.network.packet.Packet250CustomPayload;
 public class PlayerTracker implements IPlayerTracker
 {
     @SuppressWarnings("unchecked")
-    void updateHeldState(EntityPlayer player) {
+    public static void updateHeldState(EntityPlayer player) {
+        if (player.worldObj.isRemote) {
+            // Servers only, please.
+            return;
+        }
+
         // Fetch the player's held block.
         ItemStack block_held = PickItUp.buildHeldItemStack(player);
 
