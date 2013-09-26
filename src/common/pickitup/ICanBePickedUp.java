@@ -26,9 +26,9 @@ import net.minecraft.entity.player.EntityPlayer;
 // properly.  Keep your data in packed_data if you need any at all.
 public interface ICanBePickedUp extends ISimplePickup {
     // Inherited from ISimplePickup
-    // Called when this class is added as a handler via IMC.  Can just return
-    // null if you register directly.
-    //public static ISimplePickup ispInstance();
+    // If this class is added as a handler via IMC, it MUST define a
+    // constructor with no parameters.
+    //public ThisClass();
 
     // Inherited from ISimplePickup
     // This should return true for the block type(s) that this class covers.
@@ -122,8 +122,8 @@ public interface ICanBePickedUp extends ISimplePickup {
     // pointless.
     public boolean handlesPickupOf(int id, int meta) { return false; }
 
-    // Not using IMC to register.
-    public static ISimplePickup ispInstance() { return null; }
+    // You need a zero-parameter constructor if you want to register with IMC.
+    //public ThisClass() {}
     // No additional constraints on picking up this block.
     public boolean allowPickup(EntityPlayer player, int x, int y, int z) { return true; }
 

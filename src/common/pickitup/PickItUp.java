@@ -190,7 +190,8 @@ public class PickItUp {
                 return;
             }
 
-            ISimplePickup handler = (ISimplePickup) handlerClass.getMethod("ispInstance").invoke(null);
+            @SuppressWarnings("unchecked")
+            ISimplePickup handler = (ISimplePickup) handlerClass.getConstructor().newInstance();
             addHandler(handler);
         } catch (Exception e) {
             System.out.println("PickItUp: Unable to get an instance of handler class " + handlerName + ": " + e);
@@ -205,7 +206,7 @@ public class PickItUp {
         for (int i=0; i<pickupHandlers.size(); i++) {
             ISimplePickup handler = pickupHandlers.get(i);
 
-            if (handler.handlePickupOf(id, meta)) {
+            if (handler.handlesPickupOf(id, meta)) {
                 pickupHandlers.remove(i);
 
                 // Back up a step, so we don't skip an element.
@@ -216,13 +217,13 @@ public class PickItUp {
 
     // This is the version of clearHandlers invoked by IMC.
     public static void clearHandlers(ItemStack item) {
-        clearHandlers(item.itemID, item.itemDamage);
+        clearHandlers(item.itemID, item.getItemDamage());
     }
 
     // Get the ISimplePickup that will handle this id and meta.  May be null.
     public static ISimplePickup getSimpleHandler(int id, int meta) {
         for (ISimplePickup handler : pickupHandlers) {
-            if (handler.handlePickupOf(id, meta)) {
+            if (handler.handlesPickupOf(id, meta)) {
                 return handler;
             }
         }
@@ -234,7 +235,7 @@ public class PickItUp {
     public static ICanBePickedUp getFullHandler(int id, int meta) {
         for (ISimplePickup handler : pickupHandlers) {
             if (handler instanceof ICanBePickedUp &&
-                handler.handlePickupOf(id, meta)) {
+                handler.handlesPickupOf(id, meta)) {
                 return (ICanBePickedUp) handler;
             }
         }
@@ -295,7 +296,7 @@ public class PickItUp {
 
         if (handler != null) {
             try {
-                item_tag = handler.afterPickup(player, x, y, z, item_tag);
+                handler.afterPickup(player, x, y, z, item_tag);
             } catch (Exception e) {
                 System.out.println("PickItUp: Exception in handler.afterPickup: " + e);
             }
@@ -356,9 +357,9 @@ public class PickItUp {
     // cube to find the best place to put it.  If no valid locations are found,
     // the block is deleted.
     public static void forcePlace(NBTTagCompound block, EntityPlayer player) {
-        int id = block.getInteger("packed_id");
-        int meta = block.getInteger("packed_meta");
-        ICanBePickedUp handler = getFullHandler(id, meta);
+        int held_id = block.getInteger("packed_id");
+        int held_meta = block.getInteger("packed_meta");
+        ICanBePickedUp handler = getFullHandler(held_id, held_meta);
 
         World world = player.worldObj;
         int x = MathHelper.floor_double(player.posX);
