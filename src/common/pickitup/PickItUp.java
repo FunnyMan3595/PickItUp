@@ -1,5 +1,6 @@
 package pickitup;
 import pickitup.api.*;
+import pickitup.vanilla.*;
 
 import java.lang.reflect.Method;
 import java.util.Vector;
@@ -18,8 +19,11 @@ import cpw.mods.fml.common.registry.GameRegistry;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockHalfSlab;
+import net.minecraft.block.BlockStairs;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.common.Configuration;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -73,6 +77,9 @@ public class PickItUp {
     public void preInit(FMLPreInitializationEvent event) {
         // Load config file.
         config = new Configuration(event.getSuggestedConfigurationFile());
+
+        // Add the vanilla handlers.
+        addHandler(new SignHandler());
     }
 
     @Mod.Init
@@ -330,10 +337,12 @@ public class PickItUp {
             ICanBePickedUp handler = getFullHandler(id, meta);
 
             Boolean allow = null;
-            try {
-                allow = handler.allowPutdown(player, x, y, z, face, block);
-            } catch (Exception e) {
-                System.out.println("PickItUp: Exception in handler.allowPutdown: " + e);
+            if (handler != null) {
+                try {
+                    allow = handler.allowPutdown(player, x, y, z, face, block);
+                } catch (Exception e) {
+                    System.out.println("PickItUp: Exception in handler.allowPutdown: " + e);
+                }
             }
 
             if (allow == null) {
@@ -442,6 +451,11 @@ public class PickItUp {
     // of putting the block in the world, with all appropriate notifications.
     public static boolean placeAt(NBTTagCompound block, EntityPlayer player,
                            int x, int y, int z, int face) {
+        if (!(player instanceof EntityPlayerMP)) {
+            // This should only be running server-side.
+            return false;
+        }
+
         World world = player.worldObj;
         int id = block.getInteger("packed_id");
         int meta = block.getInteger("packed_meta");
@@ -459,6 +473,56 @@ public class PickItUp {
         if (!placed) {
             NBTTagCompound data = block.getCompoundTag("packed_data");
             ItemStack fakeStack = new ItemStack(id, 1, meta);
+
+            // Get the fractional-block hit components, for slabs and such.
+            float hitX = 0f;
+            float hitY = 0f;
+            float hitZ = 0f;
+            double reach = ((EntityPlayerMP)player).theItemInWorldManager.getBlockReachDistance() + 1;
+
+            // This would be so much simpler if player.rayTrace actually
+            // respected the height of the player's view.  Or if getEyeHeight
+            // actually included the offset from sneaking.
+            Vec3 playerPos = player.getPosition(0f);
+            if (player.isSneaking()) {
+                playerPos.yCoord += 1.54;
+            } else {
+                // Er, what?  You should always be sneaking while carrying!
+                // Ah, well, we'll handle it properly anyway.
+                playerPos.yCoord += 1.62;
+            }
+            Vec3 playerLook = player.getLook(0f);
+            Vec3 playerLookTarget = playerPos.addVector(
+                                        playerLook.xCoord * reach,
+                                        playerLook.yCoord * reach,
+                                        playerLook.zCoord * reach);
+            MovingObjectPosition target = player.worldObj.rayTraceBlocks(playerPos, playerLookTarget);
+
+            // Now that we've finished the ray trace, we can grab the fractional
+            // block components out of the hit vector.
+            if (target != null) {
+                hitX = (float) (target.hitVec.xCoord - Math.floor(target.hitVec.xCoord));
+                hitY = (float) (target.hitVec.yCoord - Math.floor(target.hitVec.yCoord));
+                hitZ = (float) (target.hitVec.zCoord - Math.floor(target.hitVec.zCoord));
+            }
+
+            Block theBlock = Block.blocksList[id];
+
+            if (theBlock instanceof BlockHalfSlab) {
+                if (!theBlock.isOpaqueCube()) {
+                    // Half slab, zero out the "flipped upside-down" bit.
+                    meta &= ~0x8;
+                }
+            } else if (theBlock instanceof BlockStairs) {
+                // Stairs block, zero out the "flipped upside-down" bit.
+                meta &= ~0x4;
+            }
+
+            // Give the Block a chance to change the metadata we're about to
+            // set.
+            meta = Block.blocksList[id].onBlockPlaced(world, x, y, z, face,
+                                                      hitX, hitY, hitZ,
+                                                      meta);
 
             if (!world.setBlock(x, y, z, id, meta, 3))
             {
@@ -701,7 +765,8 @@ public class PickItUp {
         // the player's items drop.
         @ForgeSubscribe
         public void onDeath(LivingDeathEvent event) {
-            if (!(event.entity instanceof EntityPlayer)) {
+            if (!(event.entity instanceof EntityPlayer) ||
+                event.entity.worldObj.isRemote) {
                 return;
             }
 
