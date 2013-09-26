@@ -70,16 +70,22 @@ public class FakeWorld implements IBlockAccess {
             Minecraft.getMinecraft().renderEngine.bindTexture("/terrain.png");
 
             GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL11.glColor4f(1, 1, 1, 0.75f);
+
             Tessellator.instance.startDrawingQuads();
             Vec3 loc = player.getPosition(partialTick);
             Tessellator.instance.setTranslation(-loc.xCoord,
                                                 -loc.yCoord,
                                                 -loc.zCoord);
+
             rb.setRenderBoundsFromBlock(block);
             Tessellator.instance.setColorRGBA(255, 255, 255, 192);
             Tessellator.instance.disableColor();
+
             rb.renderBlockAllFaces(block, where.posX, where.posY, where.posZ);
             Tessellator.instance.draw();
+
             Tessellator.instance.setTranslation(0D,0D,0D);
             GL11.glDisable(GL11.GL_BLEND);
         }
