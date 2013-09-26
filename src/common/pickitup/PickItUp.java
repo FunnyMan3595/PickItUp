@@ -5,6 +5,8 @@ import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import cpw.mods.fml.common.event.FMLInterModComms.IMCEvent;
+import cpw.mods.fml.common.event.FMLInterModComms.IMCMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.Loader;
@@ -121,6 +123,27 @@ public class PickItUp {
         }
     }
 
+    // This is called when we get an IMC message.  We use it to allow other
+    // mods to add hooks without compiling against the PickItUp core.
+    // (They'll still need ISimplePickup and possibly ICanBePickedUp, of
+    //  course.)
+    @Mod.IMCCallback
+    public void gotIMC(IMCEvent event) {
+        for (IMCMessage message : event.getMessages()) {
+            try {
+                if ("addHandler".equals(message.key)) {
+                    addHandler(message.getStringValue());
+                } else if ("clearHandlers".equals(message.key)) {
+                    clearHandlers(message.getItemStackValue());
+                } else {
+                    System.out.println("PickItUp: Bad IMC message from " + message.getSender() + " with key " + message.key + ": Unrecognized key.");
+                }
+            } catch (Exception e) {
+                System.out.println("PickItUp: Bad IMC message from " + message.getSender() + " with key " + message.key + ": " + e);
+            }
+        }
+    }
+
     public static boolean hasBackpack(EntityPlayer player) {
         if (getBackpack != null) {
             try {
@@ -149,13 +172,35 @@ public class PickItUp {
 
     // --- Handler stuff ---
 
-    // Adds a handler.
+    // Adds a handler.  This can also be accomplished by sending an IMC message:
+    // {"addHandler": "name of a class that implements ISimplePickup"}
     public static void addHandler(ISimplePickup handler) {
         pickupHandlers.add(handler);
     }
 
+    // This is the version of addHandler invoked by IMC.
+    // This would be so much easier if the message could just contain an
+    // ISimplePickup implementer directly, but there's no way to extract
+    // the contents as a raw object.  :(
+    public static void addHandler(String handlerName) {
+        try {
+            Class handlerClass = Class.forName(handlerName);
+            if (!ISimplePickup.class.isAssignableFrom(handlerClass)) {
+                System.out.println("PickItUp: Handler class " + handlerName + " does not implement pickitup.ISimplePickup!");
+                return;
+            }
+
+            ISimplePickup handler = (ISimplePickup) handlerClass.getMethod("ispInstance").invoke(null);
+            addHandler(handler);
+        } catch (Exception e) {
+            System.out.println("PickItUp: Unable to get an instance of handler class " + handlerName + ": " + e);
+        }
+    }
+
     // Removes all handlers that handle a given id/meta.  This is useful for
-    // overriding the default handlers provided by PickItUp.
+    // overriding the default handlers provided by PickItUp.  This can also
+    // be accomplished by sending an IMC message:
+    // {"clearHandlers": ItemStack(id, 1, meta)}
     public static void clearHandlers(int id, int meta) {
         for (int i=0; i<pickupHandlers.size(); i++) {
             ISimplePickup handler = pickupHandlers.get(i);
@@ -167,6 +212,11 @@ public class PickItUp {
                 i--;
             }
         }
+    }
+
+    // This is the version of clearHandlers invoked by IMC.
+    public static void clearHandlers(ItemStack item) {
+        clearHandlers(item.itemID, item.itemDamage);
     }
 
     // Get the ISimplePickup that will handle this id and meta.  May be null.

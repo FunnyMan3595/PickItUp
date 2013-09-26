@@ -12,6 +12,10 @@ import net.minecraft.entity.player.EntityPlayer;
 // actually mounted on the correct surface.  For more control over the entire
 // pickup/putdown operation, use ICanBePickedUp.
 public interface ISimplePickup {
+    // Called when this class is added as a handler via IMC.  Can just return
+    // null if you register directly.
+    public static ISimplePickup ispInstance();
+
     // This should return true for the block type(s) that this class covers.
     public boolean handlesPickupOf(int id, int meta);
 
