@@ -57,8 +57,8 @@ public class PickItUp {
     public static final String DW_INDEX_DOC = "The index on EntityPlayer's DataWatcher used to store whether they are holding a block.";
     public static int DW_INDEX = DEFAULT_DW_INDEX;
 
-    public static final String DEFAULT_WHITELIST = "3-6,12,13,15,17,22-25,27,28,29:0-5,33:0-5,35,37-46,48,50,53,54,57-63,65-70,72,76,77,80-88,91,93,96,98,101-109,112-115,117,118,121,122,123,124,125-128,133-136,139-152,154-159,170-175";
-    public static final String WHITELIST_DOC = "The comma-separated list of blocks allowed to be picked up.\nThe format is [-]id[-max_id][:meta[-max_meta]], where [] denotes an optional section.\nEntries starting with - are explicit blacklists, which can be used to override later whitelist entries.  Similarly, earlier whitelist entries will override later blacklist entries.\nThe default whitelist contains all blocks which drop themselves when mined with a stone pick (or an empty hand), minus a few that caused problems, e.g. lilly pads, which are very hard to put down again.  A few manufactured blocks were also added, like blocks of gold.";
+    public static final String DEFAULT_WHITELIST = "3-6,12,13,15,17,18,-26,22-28,29:0-5,31,32,33:0-5,35,37-46,48,50,53,54,-64,57-70,72,-79,76-88,91-93,96,98,101-109,112-118,121-126,128,130,133-136,-144,-153,139-159,170-175";
+    public static final String WHITELIST_DOC = "The comma-separated list of blocks allowed to be picked up.\nThe format is [-]id[-max_id][:meta[-max_meta]], where [] denotes an optional section.\nEntries starting with - are explicit blacklists, which can be used to override later whitelist entries.  Similarly, earlier whitelist entries will override later blacklist entries.\nThe default whitelist is tuned to be fairly permissive, but not allow you to bypass major milestones like an iron pick or silk touch.\nIt also disables some problematic blocks, like lilly pads and piston heads.";
     public static Vector<BlockRange> whitelist = new Vector<BlockRange>();
 
     public static Vector<ISimplePickup> pickupHandlers = new Vector<ISimplePickup>();
