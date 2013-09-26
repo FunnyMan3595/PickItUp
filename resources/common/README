@@ -53,7 +53,7 @@ ICanBePickedUp
 You can either register directly with pickitup.PickItUp.addHandler(anInstance)
 or through IMC by sending this message to PickItUp:
 
-``"addHandler": "NameOfYourHandlerClass"``
+``"addHandler": "package.and.NameOfYourHandlerClass"``
 
 Note that if you use IMC, you must define a default (zero-argument) constructor
 for the handler, so it can be instantiated.
