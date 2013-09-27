@@ -2,7 +2,7 @@
 PickItUp: See that block?  Pick it up!
 ======================================
 
-PickItUp allowes you to pick up and transport most blocks, including complex
+PickItUp allows you to pick up and transport most blocks, including complex
 ones like chests and furnaces.
 
 Mod homepage: https://github.com/FunnyMan3595/PickItUp
@@ -32,7 +32,7 @@ Configuration
 This mod uses a whitelist to determine what blocks can be picked up.  By
 default, the list contains only vanilla blocks, but is fairly permissive.  It
 tries to prevent skipping major milestones (iron+ pick, silk touch), disallows
-problematic blocks (lilly pads are a pain to put down), and prevents outright
+problematic blocks (lily pads are a pain to put down), and prevents outright
 cheatiness (i.e. moving bedrock).  PickItUp also respects player edit
 permissions, so it will not allow you to overcome spawn protection or
 adventurer mode.
