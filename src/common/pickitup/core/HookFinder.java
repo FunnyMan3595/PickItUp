@@ -10,10 +10,10 @@ import org.objectweb.asm.commons.*;
 
 public class HookFinder extends ClassVisitor implements IClassTransformer {
     // The master table of classes and their hooks.
-    public Map<String, Map<String, Integer>> class_table;
+    public Map<String, Map<String, Hook>> class_table;
 
     // The current class's hooks.
-    public Map<String, Integer> hook_table = null;
+    public Map<String, Hook> hook_table = null;
 
     public ClassWriter writer = null;
 
@@ -32,15 +32,15 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
     public HookFinder() {
         super(Opcodes.ASM4);
 
-        class_table = new HashMap<String, Map<String, Integer>>();
+        class_table = new HashMap<String, Map<String, Hook>>();
 
 
-        Map<String, Integer> mifo = new HashMap<String, Integer>();
-        mifo.put(update_move, HookAdder.HOOK_SNEAK);
+        Map<String, Hook> mifo = new HashMap<String, Hook>();
+        mifo.put(update_move, Hook.SNEAK);
         class_table.put(mifo_class, mifo);
 
-        Map<String, Integer> er = new HashMap<String, Integer>();
-        er.put(render_hand, HookAdder.HOOK_RENDER);
+        Map<String, Hook> er = new HashMap<String, Hook>();
+        er.put(render_hand, Hook.RENDER);
         class_table.put(entity_renderer_class, er);
     }
 
@@ -110,7 +110,7 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
                                                     signature, exceptions);
 
         if (hook_table != null) {
-            Integer hook = hook_table.get(name + desc);
+            Hook hook = hook_table.get(name + desc);
             if (hook != null) {
                 System.out.println("PickItUp: Adding hook " + hook + ".");
                 try {

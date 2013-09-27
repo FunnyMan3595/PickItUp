@@ -6,11 +6,9 @@ import org.objectweb.asm.commons.*;
 
 @SuppressWarnings("unchecked")
 public class HookAdder extends AdviceAdapter {
-    public int hook; 
-    public static final int HOOK_SNEAK = 0;
-    public static final int HOOK_RENDER = 1;
+    public Hook hook;
 
-    public HookAdder(int which_hook, MethodVisitor delegate, int access, String name, String desc) {
+    public HookAdder(Hook which_hook, MethodVisitor delegate, int access, String name, String desc) {
         super(Opcodes.ASM4, delegate, access, name, desc);
         hook = which_hook;
     }
@@ -25,7 +23,7 @@ public class HookAdder extends AdviceAdapter {
             into this:
             this.sneak = this.gameSettings.keyBindSneak.pressed || ClientProxy.amIHoldingABlock();
             */
-            if (hook == HOOK_SNEAK && opcode == PUTFIELD
+            if (hook == Hook.SNEAK && opcode == PUTFIELD
                                    && owner.equals(HookFinder.mifo_class)
                                    && name.equals(HookFinder.sneak)) {
                 invokeStatic(Type.getType(client_proxy),
@@ -47,7 +45,7 @@ public class HookAdder extends AdviceAdapter {
             Class client_proxy = ClientProxy.class;
 
             // No hooks here yet.  :)
-            if (hook == HOOK_RENDER) {
+            if (hook == Hook.RENDER) {
                 /* We're adding this code:
                 ClientProxy.renderHeldBlock(par1);
                 */
