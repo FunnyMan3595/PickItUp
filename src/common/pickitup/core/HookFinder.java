@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.*;
 
 import cpw.mods.fml.relauncher.*;
+import net.minecraft.launchwrapper.IClassTransformer;
 
 import org.objectweb.asm.*;
 import org.objectweb.asm.commons.*;

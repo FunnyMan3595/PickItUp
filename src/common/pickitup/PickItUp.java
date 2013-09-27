@@ -13,6 +13,7 @@ import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.Mod;
+import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.network.NetworkMod;
 import cpw.mods.fml.common.registry.GameRegistry;
@@ -75,7 +76,7 @@ public class PickItUp {
                 serverSide="pickitup.ServerProxy")
     public static CommonProxy proxy;
 
-    @Mod.PreInit
+    @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         // Load config file.
         config = new Configuration(event.getSuggestedConfigurationFile());
@@ -84,7 +85,7 @@ public class PickItUp {
         addHandler(new SignHandler());
     }
 
-    @Mod.Init
+    @EventHandler
     @SuppressWarnings("unchecked")
     public void init(FMLInitializationEvent event) {
         try {
@@ -137,7 +138,7 @@ public class PickItUp {
     // mods to add hooks without compiling against the PickItUp core.
     // (They'll still need ISimplePickup and possibly ICanBePickedUp, of
     //  course.)
-    @Mod.IMCCallback
+    @EventHandler
     public void gotIMC(IMCEvent event) {
         for (IMCMessage message : event.getMessages()) {
             try {
@@ -498,7 +499,7 @@ public class PickItUp {
                                         playerLook.xCoord * reach,
                                         playerLook.yCoord * reach,
                                         playerLook.zCoord * reach);
-            MovingObjectPosition target = player.worldObj.rayTraceBlocks(playerPos, playerLookTarget);
+            MovingObjectPosition target = player.worldObj.clip(playerPos, playerLookTarget);
 
             // Now that we've finished the ray trace, we can grab the fractional
             // block components out of the hit vector.

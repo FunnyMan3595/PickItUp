@@ -14,6 +14,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Vec3;
 import net.minecraft.util.Vec3Pool;
 import net.minecraft.world.biome.BiomeGenBase;
@@ -67,7 +68,8 @@ public class FakeWorld implements IBlockAccess {
 
             // Hax: custom blocks will change their textures, but the default
             // RenderBlocks does not! So, put us back in a sane state:
-            Minecraft.getMinecraft().renderEngine.bindTexture("/terrain.png");
+            // (With a proper MCP mapping, this function is named bindTexture)
+            Minecraft.getMinecraft().renderEngine.func_110577_a(new ResourceLocation("/terrain.png"));
 
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
