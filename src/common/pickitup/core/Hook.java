@@ -1,6 +1,7 @@
 package pickitup.core;
 
 public enum Hook {
-    SNEAK,
-    RENDER
+    FORCE_SNEAK,
+    RENDER_HELD_BLOCK,
+    DROP_HELD_BLOCK
 }

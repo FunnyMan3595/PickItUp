@@ -20,6 +20,12 @@ able to stop sneaking.
 Right clicking again will place the block.  Don't forget that you're sneaking!
 Open your doors BEFORE you Pick It Up!
 
+Should you become stuck with a block in your hand that you can't seem to get
+rid of, simply press your "throw item" key (default Q) with an empty hand.
+The block will try very hard to find a nearby spot to be placed at, including
+ugly positions like inside your head.  If it can't find anywhere, it will be
+destroyed, so use this only as a last resort!
+
 
 Configuration
 -------------

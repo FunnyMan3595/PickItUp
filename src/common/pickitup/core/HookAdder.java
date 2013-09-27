@@ -23,9 +23,9 @@ public class HookAdder extends AdviceAdapter {
             into this:
             this.sneak = this.gameSettings.keyBindSneak.pressed || ClientProxy.amIHoldingABlock();
             */
-            if (hook == Hook.SNEAK && opcode == PUTFIELD
-                                   && owner.equals(HookFinder.mifo_class)
-                                   && name.equals(HookFinder.sneak)) {
+            if (hook == Hook.FORCE_SNEAK && opcode == PUTFIELD
+                                         && owner.equals(HookFinder.mifo_class)
+                                         && name.equals(HookFinder.sneak)) {
                 invokeStatic(Type.getType(client_proxy),
                              new Method("amIHoldingABlock",
                                         "()Z"));
@@ -43,9 +43,9 @@ public class HookAdder extends AdviceAdapter {
     protected void onMethodEnter() {
         try {
             Class client_proxy = ClientProxy.class;
+            Class common_proxy = CommonProxy.class;
 
-            // No hooks here yet.  :)
-            if (hook == Hook.RENDER) {
+            if (hook == Hook.RENDER_HELD_BLOCK) {
                 /* We're adding this code:
                 ClientProxy.renderHeldBlock(par1);
                 */
@@ -53,6 +53,16 @@ public class HookAdder extends AdviceAdapter {
                 invokeStatic(Type.getType(client_proxy),
                              new Method("renderHeldBlock",
                                         "(F)V"));
+                System.out.println("Hook added!");
+            } else if (hook == Hook.DROP_HELD_BLOCK) {
+                /* We're adding this code:
+                CommonProxy.onPlayerDrop(this);
+                */
+                loadThis();
+                invokeStatic(Type.getType(common_proxy),
+                             new Method("onPlayerDrop",
+                                        "(L" + HookFinder.entity_player_class
+                                             + ";)V"));
                 System.out.println("Hook added!");
             }
         } catch (Exception e) {

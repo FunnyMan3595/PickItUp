@@ -26,8 +26,16 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
 
     // net.minecraft.client.renderer.EntityRenderer
     public static final String entity_renderer_class = "%conf:OBF_ENTITYRENDERER%";
-    //void EntityRenderer.renderHand
+    // void EntityRenderer.renderHand(float, int)
     public static final String render_hand = "%conf:OBF_RENDER_HAND%(FI)V";
+
+    // net.minecraft.entity.player.EntityPlayer
+    public static final String entity_player_class = "%conf:OBF_ENTITYPLAYER%";
+    // net.minecraft.entity.item.EntityItem
+    public static final String entity_item_class = "%conf:OBF_ENTITYITEM%";
+    // EntityItem EntityPlayer.dropOneItem(boolean)
+    public static final String drop_one_item = "%conf:OBF_DROP_ONE_ITEM%(Z)L" + entity_item_class + ";";
+
 
     public HookFinder() {
         super(Opcodes.ASM4);
@@ -35,13 +43,18 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
         class_table = new HashMap<String, Map<String, Hook>>();
 
 
+        // MovementInputFromOptions is a long freaking name.
         Map<String, Hook> mifo = new HashMap<String, Hook>();
-        mifo.put(update_move, Hook.SNEAK);
+        mifo.put(update_move, Hook.FORCE_SNEAK);
         class_table.put(mifo_class, mifo);
 
-        Map<String, Hook> er = new HashMap<String, Hook>();
-        er.put(render_hand, Hook.RENDER);
-        class_table.put(entity_renderer_class, er);
+        Map<String, Hook> entityrenderer = new HashMap<String, Hook>();
+        entityrenderer.put(render_hand, Hook.RENDER_HELD_BLOCK);
+        class_table.put(entity_renderer_class, entityrenderer);
+
+        Map<String, Hook> entityplayer = new HashMap<String, Hook>();
+        entityplayer.put(drop_one_item, Hook.DROP_HELD_BLOCK);
+        class_table.put(entity_player_class, entityplayer);
     }
 
     public byte[] transform(String name, String transformedName, byte[] bytes) {
