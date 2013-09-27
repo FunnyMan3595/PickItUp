@@ -1,0 +1,10 @@
+[
+  {
+    "modid": "PickItUp",
+    "name": "PickItUp",
+    "version": "%conf:VERSION%",
+    "description": "Allows you to pick up most blocks with your bare hand.",
+    "authors": [ "FunnyMan3595", "narc0tiq" ],
+    "url": "https://github.com/FunnyMan3595/PickItUp"
+  }
+]
