@@ -7,6 +7,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.tileentity.TileEntityRenderer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ChunkCoordinates;
@@ -68,7 +69,7 @@ public class FakeWorld implements IBlockAccess {
 
             // Hax: custom blocks will change their textures, but the default
             // RenderBlocks does not! So, put us back in a sane state:
-            Minecraft.getMinecraft().renderEngine.bindTexture(new ResourceLocation("/terrain.png"));
+            Minecraft.getMinecraft().renderEngine.bindTexture(TextureMap.locationBlocksTexture);
 
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
