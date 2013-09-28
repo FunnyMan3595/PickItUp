@@ -665,7 +665,7 @@ public class PickItUp {
         NBTTagCompound block = getBlockHeld(player);
 
         if (block == null) {
-            return new ItemStack(0, 0, 0);
+            return new ItemStack(1, 0, 0);
         }
 
         // Build an ItemStack for the block held.
@@ -693,7 +693,7 @@ public class PickItUp {
         if (player_persisted.hasKey(HELD_TAG)) {
             player_persisted.removeTag(HELD_TAG);
         }
-        player.getDataWatcher().updateObject(27, new ItemStack(0, 0, 0));
+        player.getDataWatcher().updateObject(27, new ItemStack(1, 0, 0));
     }
 
     public static class EventListener {

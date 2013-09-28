@@ -30,15 +30,15 @@ public class PacketHandler implements IPacketHandler
         EntityPlayer eplayer = (EntityPlayer) player;
         assert(eplayer.worldObj.isRemote);
 
-        ItemStack syncStack = new ItemStack(0, 0, 0);
+        ItemStack syncStack = new ItemStack(1, 0, 0);
         try {
             ByteArrayInputStream in = new ByteArrayInputStream(packet.data);
             DataInputStream d_in = new DataInputStream(in);
             NBTTagCompound tag = (NBTTagCompound) NBTBase.readNamedTag(d_in);
 
-            syncStack = new ItemStack(0,0,0);
+            syncStack = new ItemStack(1, 0, 0);
             syncStack.readFromNBT(tag);
-        } catch (IOException e) {}
+        } catch (IOException e) { }
 
         try {
             eplayer.getDataWatcher().addObject(PickItUp.DW_INDEX, syncStack);
