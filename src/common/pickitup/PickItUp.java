@@ -486,7 +486,7 @@ public class PickItUp {
             // This would be so much simpler if player.rayTrace actually
             // respected the height of the player's view.  Or if getEyeHeight
             // actually included the offset from sneaking.
-            Vec3 playerPos = player.getPosition(0f);
+            Vec3 playerPos = player.worldObj.getWorldVec3Pool().getVecFromPool(player.posX, player.posY, player.posZ);
             if (player.isSneaking()) {
                 playerPos.yCoord += 1.54;
             } else {
