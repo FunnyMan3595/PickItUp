@@ -53,8 +53,9 @@ import static net.minecraftforge.event.Event.Result.*;
 @NetworkMod(serverSideRequired = false,
             clientSideRequired = true,
             channels = { "pickitup" },
-            packetHandler = pickitup.PacketHandler.class)
-            //connectionHandler = pickitup.ConnectionHandler.class)
+            packetHandler = pickitup.PacketHandler.class,
+            //connectionHandler = pickitup.ConnectionHandler.class,
+            versionBounds="%conf:VERSION_BOUNDS%")
 public class PickItUp {
     public static final int DEFAULT_DW_INDEX = 27;
     public static final String DW_INDEX_DOC = "The index on EntityPlayer's DataWatcher used to store whether they are holding a block.";
