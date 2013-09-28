@@ -73,7 +73,7 @@ public class PickItUp {
     public static Method getBackpack = null;
 
     @SidedProxy(clientSide="pickitup.ClientProxy",
-                serverSide="pickitup.ServerProxy")
+                serverSide="pickitup.CommonProxy")
     public static CommonProxy proxy;
 
     @EventHandler
