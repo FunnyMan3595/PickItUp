@@ -9,7 +9,7 @@ public class ClientProxy extends CommonProxy {
     // Called from the coremod's Hook.RENDER_HELD_BLOCK.
     public static void renderHeldBlock(int render_pass, double partialTick) {
         if (render_pass == 1) {
-            FakeWorld.renderHeldBlock((float)partialTick);
+            FakeWorld.renderHeldBlock(partialTick);
         }
     }
 }
