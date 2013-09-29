@@ -481,25 +481,7 @@ public class PickItUp {
             float hitX = 0f;
             float hitY = 0f;
             float hitZ = 0f;
-            double reach = ((EntityPlayerMP)player).theItemInWorldManager.getBlockReachDistance() + 1;
-
-            // This would be so much simpler if player.rayTrace actually
-            // respected the height of the player's view.  Or if getEyeHeight
-            // actually included the offset from sneaking.
-            Vec3 playerPos = player.worldObj.getWorldVec3Pool().getVecFromPool(player.posX, player.posY, player.posZ);
-            if (player.isSneaking()) {
-                playerPos.yCoord += 1.54;
-            } else {
-                // Er, what?  You should always be sneaking while carrying!
-                // Ah, well, we'll handle it properly anyway.
-                playerPos.yCoord += 1.62;
-            }
-            Vec3 playerLook = player.getLook(0f);
-            Vec3 playerLookTarget = playerPos.addVector(
-                                        playerLook.xCoord * reach,
-                                        playerLook.yCoord * reach,
-                                        playerLook.zCoord * reach);
-            MovingObjectPosition target = player.worldObj.rayTraceBlocks(playerPos, playerLookTarget);
+            MovingObjectPosition target = proxy.getPlayerTarget(player, 0F);
 
             // Now that we've finished the ray trace, we can grab the fractional
             // block components out of the hit vector.
@@ -629,12 +611,17 @@ public class PickItUp {
 
     // Where should we render the block that's currently held?
     @SideOnly(Side.CLIENT)
-    public static ChunkCoordinates getHeldRenderCoords(float partialTick) {
+    public static ChunkCoordinates getHeldRenderCoords(EntityPlayer player, float partialTick) {
         Minecraft mc = Minecraft.getMinecraft();
-        EntityPlayer player = mc.thePlayer;
 
-        double reach = (double)mc.playerController.getBlockReachDistance();
-        MovingObjectPosition target = mc.renderViewEntity.rayTrace(reach, 0);
+        MovingObjectPosition target;
+        if (player == mc.thePlayer) {
+            double reach = proxy.getReach(player);
+            target = mc.renderViewEntity.rayTrace(reach, 0);
+        } else {
+            target = proxy.getPlayerTarget(player, partialTick);
+        }
+
         if (target != null) {
             // We're looking at a block, so draw it placed there.
             int x = target.blockX;
@@ -651,10 +638,7 @@ public class PickItUp {
             return new ChunkCoordinates(x, y, z);
         } else {
             // Not looking at a block, just put it somewhere in front of us.
-            Vec3 look = player.getLook(partialTick);
-            Vec3 spot = player.getPosition(partialTick).addVector(look.xCoord * 3.5,
-                                                                  look.yCoord * 3.5,
-                                                                  look.zCoord * 3.5);
+            Vec3 spot = proxy.getPlayerLook(player, null, 3.5D, partialTick);
             return new ChunkCoordinates(MathHelper.floor_double(spot.xCoord),
                                         MathHelper.floor_double(spot.yCoord),
                                         MathHelper.floor_double(spot.zCoord));

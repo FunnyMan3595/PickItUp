@@ -13,6 +13,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.Vec3;
@@ -39,14 +40,22 @@ public class FakeWorld implements IBlockAccess {
     }
 
     public void doRender(double partialTick) {
-        NBTTagCompound block_tag = PickItUp.getMyBlockHeld();
+        for (Object entity : Minecraft.getMinecraft().theWorld.getLoadedEntityList()) {
+            if (entity instanceof EntityPlayer) {
+                doRender( (EntityPlayer) entity, partialTick);
+            }
+        }
+    }
+
+    public void doRender(EntityPlayer player, double partialTick) {
+        NBTTagCompound block_tag = PickItUp.getBlockHeld(player);
         // Do nothing if we're not holding a block.
         if (block_tag == null) {
             old_block = null;
             return;
         }
 
-        // If the block we're holding changed, grab its details.
+        // If the block we're rendering changed, grab its details.
         if (block_tag != old_block) {
             id = block_tag.getInteger("packed_id");
             meta = block_tag.getInteger("packed_meta");
@@ -60,8 +69,7 @@ public class FakeWorld implements IBlockAccess {
         }
 
         // Render the block
-        where = PickItUp.getHeldRenderCoords((float)partialTick);
-        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+        where = PickItUp.getHeldRenderCoords(player, (float)partialTick);
         if (where != null) {
             if (TileEntityRenderer.instance.hasSpecialRenderer(te)) {
                 block = Block.blockNetherQuartz;
@@ -79,13 +87,18 @@ public class FakeWorld implements IBlockAccess {
             GL11.glEnable(GL11.GL_ALPHA_TEST);
             boolean was_culling = GL11.glGetBoolean(GL11.GL_CULL_FACE);
             GL11.glEnable(GL11.GL_CULL_FACE);
-            // Set the alpha value to a constant.
+            // Set the alpha value to use a constant.
             GL11.glBlendFunc(GL11.GL_CONSTANT_COLOR, GL11.GL_ONE_MINUS_CONSTANT_ALPHA);
-            GL14.glBlendColor(0.75f, 0.75f, 0.75f, 0.75f);
+
+            if (player == Minecraft.getMinecraft().thePlayer) {
+                GL14.glBlendColor(0.75f, 0.75f, 0.75f, 0.75f);
+            } else {
+                GL14.glBlendColor(0.5f, 0.5f, 0.5f, 0.5f);
+            }
 
             // Set up the Tessellator.
             Tessellator.instance.startDrawingQuads();
-            Vec3 loc = player.getPosition((float)partialTick);
+            Vec3 loc = Minecraft.getMinecraft().thePlayer.getPosition((float)partialTick);
             Tessellator.instance.setTranslation(-loc.xCoord,
                                                 -loc.yCoord,
                                                 -loc.zCoord);

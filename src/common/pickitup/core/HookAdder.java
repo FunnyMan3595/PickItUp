@@ -79,6 +79,12 @@ public class HookAdder extends AdviceAdapter {
                              new Method("renderHeldBlock",
                                         "(ID)V"));
                 System.out.println("Hook added!");
+            } else if (hook == Hook.INIT_PLAYER) {
+                loadThis();
+                invokeStatic(Type.getType(common_proxy),
+                             new Method("initPlayer",
+                                        "(L" + HookFinder.entity_player_class
+                                             + ";)V"));
             }
         } catch (Exception e) {
             System.out.println("PickItUp: HOOK FAILED!");

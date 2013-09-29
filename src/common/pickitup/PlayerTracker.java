@@ -17,11 +17,6 @@ public class PlayerTracker implements IPlayerTracker
 {
     @SuppressWarnings("unchecked")
     public static void updateHeldState(EntityPlayer player) {
-        if (player.worldObj.isRemote) {
-            // Servers only, please.
-            return;
-        }
-
         // Fetch the player's held block.
         ItemStack block_held = PickItUp.buildHeldItemStack(player);
 
@@ -30,6 +25,11 @@ public class PlayerTracker implements IPlayerTracker
             player.getDataWatcher().addObject(PickItUp.DW_INDEX, block_held);
         } catch (IllegalArgumentException e) {
             player.getDataWatcher().updateObject(PickItUp.DW_INDEX, block_held);
+        }
+
+        if (player.worldObj.isRemote) {
+            // Servers only, please.
+            return;
         }
 
         // And send an initialization packet to set their initial state.

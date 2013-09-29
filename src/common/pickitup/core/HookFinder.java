@@ -35,6 +35,8 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
     public static final String entity_item_class = "%conf:OBF_ENTITYITEM%";
     // EntityItem EntityPlayer.dropOneItem(boolean)
     public static final String drop_one_item = "%conf:OBF_DROP_ONE_ITEM%(Z)L" + entity_item_class + ";";
+    // void Entity.entityInit()
+    public static final String entity_init = "%conf:OBF_ENTITY_INIT%()V";
 
 
     public HookFinder() {
@@ -54,6 +56,7 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
 
         Map<String, Hook> entityplayer = new HashMap<String, Hook>();
         entityplayer.put(drop_one_item, Hook.DROP_HELD_BLOCK);
+        entityplayer.put(entity_init, Hook.INIT_PLAYER);
         class_table.put(entity_player_class, entityplayer);
     }
 

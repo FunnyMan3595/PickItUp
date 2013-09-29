@@ -1,5 +1,8 @@
 package pickitup;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.entity.player.EntityPlayer;
+
 public class ClientProxy extends CommonProxy {
     // Called from the coremod's Hook.FORCE_SNEAK.
     public static boolean amIHoldingABlock() {
@@ -11,5 +14,10 @@ public class ClientProxy extends CommonProxy {
         if (render_pass == 1) {
             FakeWorld.renderHeldBlock(partialTick);
         }
+    }
+
+    public double getReach(EntityPlayer player) {
+        Minecraft mc = Minecraft.getMinecraft();
+        return (double)mc.playerController.getBlockReachDistance();
     }
 }
