@@ -24,10 +24,10 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
     // void MovementInputFromOptions.updatePlayerMoveState()
     public static final String update_move = "%conf:OBF_UPDATE_MOVE%()V";
 
-    // net.minecraft.client.renderer.EntityRenderer
-    public static final String entity_renderer_class = "%conf:OBF_ENTITYRENDERER%";
-    // void EntityRenderer.renderHand(float, int)
-    public static final String render_hand = "%conf:OBF_RENDER_HAND%(FI)V";
+    // net.minecraft.client.renderer.RenderGlobal
+    public static final String render_global_class = "%conf:OBF_RENDERGLOBAL%";
+    // int RenderGlobal.renderSortedRenderers(int, int, int, double)
+    public static final String render_sorted = "%conf:OBF_RENDER_SORTED%(IIID)I";
 
     // net.minecraft.entity.player.EntityPlayer
     public static final String entity_player_class = "%conf:OBF_ENTITYPLAYER%";
@@ -48,9 +48,9 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
         mifo.put(update_move, Hook.FORCE_SNEAK);
         class_table.put(mifo_class, mifo);
 
-        Map<String, Hook> entityrenderer = new HashMap<String, Hook>();
-        entityrenderer.put(render_hand, Hook.RENDER_HELD_BLOCK);
-        class_table.put(entity_renderer_class, entityrenderer);
+        Map<String, Hook> renderglobal = new HashMap<String, Hook>();
+        renderglobal.put(render_sorted, Hook.RENDER_HELD_BLOCK);
+        class_table.put(render_global_class, renderglobal);
 
         Map<String, Hook> entityplayer = new HashMap<String, Hook>();
         entityplayer.put(drop_one_item, Hook.DROP_HELD_BLOCK);

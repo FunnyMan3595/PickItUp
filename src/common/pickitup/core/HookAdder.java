@@ -13,6 +13,7 @@ public class HookAdder extends AdviceAdapter {
         hook = which_hook;
     }
 
+    @Override
     public void visitFieldInsn(int opcode, String owner, String name, String desc) {
         try {
             Class client_proxy = ClientProxy.class;
@@ -40,21 +41,13 @@ public class HookAdder extends AdviceAdapter {
         super.visitFieldInsn(opcode, owner, name, desc);
     }
 
+    @Override
     protected void onMethodEnter() {
         try {
             Class client_proxy = ClientProxy.class;
             Class common_proxy = CommonProxy.class;
 
-            if (hook == Hook.RENDER_HELD_BLOCK) {
-                /* We're adding this code:
-                ClientProxy.renderHeldBlock(par1);
-                */
-                loadArgs(0, 1); // our own argument #1
-                invokeStatic(Type.getType(client_proxy),
-                             new Method("renderHeldBlock",
-                                        "(F)V"));
-                System.out.println("Hook added!");
-            } else if (hook == Hook.DROP_HELD_BLOCK) {
+            if (hook == Hook.DROP_HELD_BLOCK) {
                 /* We're adding this code:
                 CommonProxy.onPlayerDrop(this);
                 */
@@ -63,6 +56,28 @@ public class HookAdder extends AdviceAdapter {
                              new Method("onPlayerDrop",
                                         "(L" + HookFinder.entity_player_class
                                              + ";)V"));
+                System.out.println("Hook added!");
+            }
+        } catch (Exception e) {
+            System.out.println("PickItUp: HOOK FAILED!");
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void onMethodExit(int opcode) {
+        try {
+            Class client_proxy = ClientProxy.class;
+            Class common_proxy = CommonProxy.class;
+
+            if (hook == Hook.RENDER_HELD_BLOCK) {
+                /* We're adding this code:
+                ClientProxy.renderHeldBlock(par1);
+                */
+                loadArgs(2, 2); // our own arguments #3-4
+                invokeStatic(Type.getType(client_proxy),
+                             new Method("renderHeldBlock",
+                                        "(ID)V"));
                 System.out.println("Hook added!");
             }
         } catch (Exception e) {
