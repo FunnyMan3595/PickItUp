@@ -4,7 +4,9 @@ public enum Hook {
     // void MovementInputFromOptions.updatePlayerMoveState()
     FORCE_SNEAK("%MD:net/minecraft/util/MovementInputFromOptions/updatePlayerMoveState ()V%"),
     // int RenderGlobal.renderSortedRenderers(int, int, int, double)
-    RENDER_HELD_BLOCK("%MD:net/minecraft/client/renderer/RenderGlobal/renderSortedRenderers (IIID)I%"),
+    RENDER_HELD_BLOCK_A("%MD:net/minecraft/client/renderer/RenderGlobal/renderSortedRenderers (IIID)I%"),
+    // void RenderGlobal.renderAllRenderLists(int, double)
+    RENDER_HELD_BLOCK_B("%MD:net/minecraft/client/renderer/RenderGlobal/renderAllRenderLists (ID)V%"),
     // EntityItem EntityPlayer.dropOneItem(boolean)
     DROP_HELD_BLOCK("%MD:net/minecraft/entity/player/EntityPlayer/dropOneItem (Z)Lnet/minecraft/entity/item/EntityItem;%"),
     // void Entity.entityInit()

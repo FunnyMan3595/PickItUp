@@ -56,6 +56,14 @@ public class HookAdder extends AdviceAdapter {
                              new Method("onPlayerDrop",
                                         "(L%CL:net/minecraft/entity/player/EntityPlayer%;)V"));
                 System.out.println("Hook added!");
+            } else if (hook == Hook.RENDER_HELD_BLOCK_B) {
+                /* We're adding this code:
+                ClientProxy.renderHeldBlockFallback(par1, par2);
+                */
+                loadArgs(0, 2); // our own arguments #1-2
+                invokeStatic(Type.getType(client_proxy),
+                             new Method("renderHeldBlockFallback",
+                                        "(ID)V"));
             }
         } catch (Exception e) {
             System.out.println("PickItUp: HOOK FAILED!");
@@ -69,14 +77,17 @@ public class HookAdder extends AdviceAdapter {
             Class client_proxy = ClientProxy.class;
             Class common_proxy = CommonProxy.class;
 
-            if (hook == Hook.RENDER_HELD_BLOCK) {
+            if (hook == Hook.RENDER_HELD_BLOCK_A) {
                 /* We're adding this code:
-                ClientProxy.renderHeldBlock(par1);
+                ClientProxy.renderHeldBlock(par3, par4);
                 */
                 loadArgs(2, 2); // our own arguments #3-4
                 invokeStatic(Type.getType(client_proxy),
                              new Method("renderHeldBlock",
                                         "(ID)V"));
+                // Increment the return value.
+                push(1);
+                math(ADD, Type.INT_TYPE);
                 System.out.println("Hook added!");
             } else if (hook == Hook.INIT_PLAYER) {
                 loadThis();
