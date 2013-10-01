@@ -24,6 +24,7 @@ import net.minecraftforge.common.ForgeDirection;
 
 @SideOnly(Side.CLIENT)
 public class FakeWorld implements IBlockAccess {
+    private static final Tessellator tessellator = new Tessellator();
     public static final FakeWorld instance = new FakeWorld();
     public final Vec3Pool vecPool = new Vec3Pool(10, 100);
     public final RenderBlocks rb = new RenderBlocks(this);
@@ -97,19 +98,19 @@ public class FakeWorld implements IBlockAccess {
             }
 
             // Set up the Tessellator.
-            Tessellator.instance.startDrawingQuads();
+            tessellator.startDrawingQuads();
             Vec3 loc = Minecraft.getMinecraft().thePlayer.getPosition((float)partialTick);
-            Tessellator.instance.setTranslation(-loc.xCoord,
+            tessellator.setTranslation(-loc.xCoord,
                                                 -loc.yCoord,
                                                 -loc.zCoord);
             rb.setRenderBoundsFromBlock(block);
 
             // Do the actual rendering.
             rb.renderBlockByRenderType(block, where.posX, where.posY, where.posZ);
-            Tessellator.instance.draw();
+            tessellator.draw();
 
             // Undo all the setup we did before.
-            Tessellator.instance.setTranslation(0D,0D,0D);
+            tessellator.setTranslation(0D,0D,0D);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             if (!was_culling) {
                 GL11.glDisable(GL11.GL_CULL_FACE);
