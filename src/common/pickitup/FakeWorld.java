@@ -97,6 +97,10 @@ public class FakeWorld implements IBlockAccess {
                 GL14.glBlendColor(0.5f, 0.5f, 0.5f, 0.5f);
             }
 
+            // Swap in our private Tessellator, so that RenderBlocks uses it.
+            Tessellator normal_tessellator = Tessellator.instance;
+            Tessellator.instance = tessellator;
+
             // Set up the Tessellator.
             tessellator.startDrawingQuads();
             Vec3 loc = Minecraft.getMinecraft().thePlayer.getPosition((float)partialTick);
@@ -111,6 +115,7 @@ public class FakeWorld implements IBlockAccess {
 
             // Undo all the setup we did before.
             tessellator.setTranslation(0D,0D,0D);
+            Tessellator.instance = normal_tessellator;
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             if (!was_culling) {
                 GL11.glDisable(GL11.GL_CULL_FACE);
