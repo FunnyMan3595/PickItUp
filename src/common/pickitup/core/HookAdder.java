@@ -24,9 +24,9 @@ public class HookAdder extends AdviceAdapter {
             into this:
             this.sneak = this.gameSettings.keyBindSneak.pressed || ClientProxy.amIHoldingABlock();
             */
-            if (hook == Hook.FORCE_SNEAK && opcode == PUTFIELD
-                                         && owner.equals(HookFinder.mifo_class)
-                                         && name.equals(HookFinder.sneak)) {
+            if (hook == Hook.FORCE_SNEAK && opcode == PUTFIELD &&
+                owner.equals("%CL:net/minecraft/util/MovementInputFromOptions%") &&
+                "%FD:net/minecraft/util/MovementInput/sneak%".endsWith("/" + name)) {
                 invokeStatic(Type.getType(client_proxy),
                              new Method("amIHoldingABlock",
                                         "()Z"));
@@ -54,8 +54,7 @@ public class HookAdder extends AdviceAdapter {
                 loadThis();
                 invokeStatic(Type.getType(common_proxy),
                              new Method("onPlayerDrop",
-                                        "(L" + HookFinder.entity_player_class
-                                             + ";)V"));
+                                        "(L%CL:net/minecraft/entity/player/EntityPlayer%;)V"));
                 System.out.println("Hook added!");
             }
         } catch (Exception e) {
@@ -83,8 +82,7 @@ public class HookAdder extends AdviceAdapter {
                 loadThis();
                 invokeStatic(Type.getType(common_proxy),
                              new Method("initPlayer",
-                                        "(L" + HookFinder.entity_player_class
-                                             + ";)V"));
+                                        "(L%CL:net/minecraft/entity/player/EntityPlayer%;)V"));
             }
         } catch (Exception e) {
             System.out.println("PickItUp: HOOK FAILED!");
