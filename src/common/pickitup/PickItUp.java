@@ -274,6 +274,12 @@ public class PickItUp {
             System.out.println("PickItUp: Exception in handler.allowPickup: " + e);
         }
 
+        if (world.isRemote) {
+            // Clients assume everything else goes fine, but wait for the
+            // server's confirmation to do anything.
+            return true;
+        }
+
         NBTTagCompound item_tag = null;
         if (handler != null) {
             try {
