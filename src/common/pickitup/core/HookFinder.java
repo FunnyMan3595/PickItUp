@@ -8,18 +8,11 @@ import cpw.mods.fml.relauncher.*;
 import org.objectweb.asm.*;
 import org.objectweb.asm.commons.*;
 
-public class HookFinder extends ClassVisitor implements IClassTransformer {
+public class HookFinder implements IClassTransformer {
     // The master table of classes and their hooks.
     public Map<String, Map<String, Hook>> class_table;
 
-    // The current class's hooks.
-    public Map<String, Hook> hook_table = null;
-
-    public ClassWriter writer = null;
-
     public HookFinder() {
-        super(Opcodes.ASM4);
-
         class_table = new HashMap<String, Map<String, Hook>>();
 
         for (Hook hook : Hook.all()) {
@@ -32,7 +25,7 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
     }
 
     public byte[] transform(String name, String transformedName, byte[] bytes) {
-        hook_table = class_table.get(name);
+        Map<String, Hook> hook_table = class_table.get(name);
 
         if (hook_table == null) {
             return bytes;
@@ -40,9 +33,10 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
 
         try {
             ClassReader reader = new ClassReader(bytes);
-            writer = new ClassWriter(reader, 0);
+            ClassWriter writer = new ClassWriter(reader, 0);
 
-            reader.accept(this, ClassReader.EXPAND_FRAMES);
+            reader.accept(new Visitor(hook_table, writer),
+                          ClassReader.EXPAND_FRAMES);
 
             byte[] output = writer.toByteArray();
 
@@ -61,62 +55,75 @@ public class HookFinder extends ClassVisitor implements IClassTransformer {
         }
     }
 
-    public void visit(int version, int access, String name, String signature,
-                      String superName, String[] interfaces) {
-        System.out.println("PickItUp: Recognized class " + name + ".");
+    public class Visitor extends ClassVisitor {
+        // The current class's hooks.
+        public final Map<String, Hook> hook_table;
 
-        writer.visit(version, access, name, signature, superName, interfaces);
-    }
+        public final ClassWriter writer;
 
-    public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-        return writer.visitAnnotation(desc, visible);
-    }
+        public Visitor(Map<String, Hook> hook_table, ClassWriter writer) {
+            super(Opcodes.ASM4);
 
-    public void visitAttribute(Attribute attr) {
-        writer.visitAttribute(attr);
-    }
-
-    public void visitEnd() {
-        hook_table = null;
-        writer.visitEnd();
-    }
-
-    public FieldVisitor visitField(int access, String name, String desc,
-                                   String signature, Object value) {
-        return writer.visitField(access, name, desc, signature, value);
-    }
-
-    public void visitInnerClass(String name, String outerName,
-                                String innerName, int access) {
-        writer.visitInnerClass(name, outerName, innerName, access);
-    }
-
-    public MethodVisitor visitMethod(int access, String name, String desc,
-                                     String signature, String[] exceptions) {
-        MethodVisitor write_it = writer.visitMethod(access, name, desc,
-                                                    signature, exceptions);
-
-        if (hook_table != null) {
-            Hook hook = hook_table.get(name + " " + desc);
-            if (hook != null) {
-                System.out.println("PickItUp: Adding hook " + hook + ".");
-                try {
-                    return new HookAdder(hook, write_it, access, name, desc);
-                } catch (Exception e) {
-                    System.out.println("PickItUp: HOOK FAILED!");
-                    e.printStackTrace();
-                }
-            }
+            this.hook_table = hook_table;
+            this.writer = writer;
         }
 
-        return write_it;
-    }
+        public void visit(int version, int access, String name, String signature,
+                          String superName, String[] interfaces) {
+            System.out.println("PickItUp: Recognized class " + name + ".");
 
-    public void visitOuterClass(String owner, String name, String desc) {
-        writer.visitOuterClass(owner, name, desc);
-    }
+            writer.visit(version, access, name, signature, superName, interfaces);
+        }
 
-    public void visitSource(String source, String debug) {
-        writer.visitSource(source, debug);
+        public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+            return writer.visitAnnotation(desc, visible);
+        }
+
+        public void visitAttribute(Attribute attr) {
+            writer.visitAttribute(attr);
+        }
+
+        public void visitEnd() {
+            writer.visitEnd();
+        }
+
+        public FieldVisitor visitField(int access, String name, String desc,
+                                       String signature, Object value) {
+            return writer.visitField(access, name, desc, signature, value);
+        }
+
+        public void visitInnerClass(String name, String outerName,
+                                    String innerName, int access) {
+            writer.visitInnerClass(name, outerName, innerName, access);
+        }
+
+        public MethodVisitor visitMethod(int access, String name, String desc,
+                                         String signature, String[] exceptions) {
+            MethodVisitor write_it = writer.visitMethod(access, name, desc,
+                                                        signature, exceptions);
+
+            if (hook_table != null) {
+                Hook hook = hook_table.get(name + " " + desc);
+                if (hook != null) {
+                    System.out.println("PickItUp: Adding hook " + hook + ".");
+                    try {
+                        return new HookAdder(hook, write_it, access, name, desc);
+                    } catch (Exception e) {
+                        System.out.println("PickItUp: HOOK FAILED!");
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            return write_it;
+        }
+
+        public void visitOuterClass(String owner, String name, String desc) {
+            writer.visitOuterClass(owner, name, desc);
+        }
+
+        public void visitSource(String source, String debug) {
+            writer.visitSource(source, debug);
+        }
     }
 }
