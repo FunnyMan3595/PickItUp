@@ -68,6 +68,9 @@ public class PlayerTracker implements IPlayerTracker
                     new Packet250CustomPayload("pickitup", out.toByteArray()),
                                                (Player) player);
             }
+        } catch (NullPointerException e) {
+            // Connection not fully established yet.  Don't worry about it.
+            // We'll do this again when they finish logging in.
         } catch (IOException e) {}
     }
 
