@@ -674,7 +674,7 @@ public class PickItUp {
         player_persisted.setCompoundTag(HELD_TAG, block);
 
         // Sync the block held.
-        player.getDataWatcher().updateObject(27, buildHeldItemStack(player));
+        player.getDataWatcher().updateObject(DW_INDEX, buildHeldItemStack(player));
     }
 
     // Remove the stored data after the player set down (or otherwise returned
@@ -684,7 +684,7 @@ public class PickItUp {
         if (player_persisted.hasKey(HELD_TAG)) {
             player_persisted.removeTag(HELD_TAG);
         }
-        player.getDataWatcher().updateObject(27, new ItemStack(1, 0, 0));
+        player.getDataWatcher().updateObject(DW_INDEX, new ItemStack(1, 0, 0));
     }
 
     public static class EventListener {
