@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import cpw.mods.fml.common.event.FMLInterModComms.IMCEvent;
 import cpw.mods.fml.common.event.FMLInterModComms.IMCMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.Mod;
@@ -23,6 +24,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockHalfSlab;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.common.Configuration;
@@ -123,15 +125,23 @@ public class PickItUp {
         // Register our listeners.
         MinecraftForge.EVENT_BUS.register(new EventListener());
         GameRegistry.registerPlayerTracker(new PlayerTracker());
+    }
 
+    @EventHandler
+    @SuppressWarnings("unchecked")
+    public void postInit(FMLPostInitializationEvent event) {
         // Interface with BetterStorage.
         if (Loader.isModLoaded("betterstorage")) {
             try {
                 Class itemBackpack = Class.forName("net.mcft.copy.betterstorage.item.ItemBackpack");
-                getBackpack = itemBackpack.getMethod("getBackpack", EntityPlayer.class);
+                getBackpack = itemBackpack.getMethod("getBackpack", EntityLivingBase.class);
+                System.out.println("PickItUp: BetterStorage integration active.");
             } catch (Exception e) {
                 getBackpack = null;
+                System.out.println("PickItUp: BetterStorage integration failed: " + e);
             }
+        } else {
+            System.out.println("PickItUp: BetterStorage not detected.");
         }
     }
 
