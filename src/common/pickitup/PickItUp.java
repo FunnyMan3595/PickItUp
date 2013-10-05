@@ -53,7 +53,7 @@ import static net.minecraftforge.event.Event.Result.*;
      version = "%conf:VERSION%")
 @NetworkMod(serverSideRequired = false,
             clientSideRequired = true,
-            channels = { "pickitup" },
+            channels = { "piu.heldblock", "piu.freeze" },
             packetHandler = pickitup.PacketHandler.class,
             //connectionHandler = pickitup.ConnectionHandler.class,
             versionBounds="%conf:VERSION_BOUNDS%")
@@ -353,6 +353,9 @@ public class PickItUp {
             if (block_data != null) {
                 item_tag.setCompoundTag("packed_data", block_data);
             }
+
+            // Tell all the clients to save a copy of the block's rendering.
+            PlayerTracker.sendFreezePacket(player, x, y, z);
 
             // Delete the block from the world.
             world.removeBlockTileEntity(x, y, z);

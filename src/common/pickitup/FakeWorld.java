@@ -3,9 +3,13 @@ package pickitup;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 
+import java.util.Map;
+import java.util.LinkedHashMap;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GLAllocation;
 import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.tileentity.TileEntityRenderer;
@@ -20,24 +24,65 @@ import net.minecraft.util.Vec3;
 import net.minecraft.util.Vec3Pool;
 import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraft.world.IBlockAccess;
+import net.minecraft.world.World;
 import net.minecraftforge.common.ForgeDirection;
+import net.minecraftforge.client.ForgeHooksClient;
+
 
 @SideOnly(Side.CLIENT)
 public class FakeWorld implements IBlockAccess {
     private static final Tessellator tessellator = new Tessellator();
-    public static final FakeWorld instance = new FakeWorld();
+    public static final FakeWorld instance = new FakeWorld(10);
     public final Vec3Pool vecPool = new Vec3Pool(10, 100);
     public final RenderBlocks rb = new RenderBlocks(this);
 
+    public int glListBase;
     public NBTTagCompound old_block = null;
     public int id = 40;
     public int meta = 0;
     public Block block = Block.blocksList[40];
     public TileEntity te = null;
     public ChunkCoordinates where = null;
+    public LRU frozenBlocks;
+
+    public FakeWorld(int frozenCache) {
+        frozenBlocks = new LRU(frozenCache);
+        glListBase = GLAllocation.generateDisplayLists(frozenCache + 1);
+    }
 
     public static void renderHeldBlock(double partialTick) {
         instance.doRender(partialTick);
+    }
+
+    public static void freeze(String username, int x, int y, int z) {
+        instance.freezeRender(username, x, y, z);
+    }
+
+    public void freezeRender(String username, int x, int y, int z) {
+        boolean[] used = new boolean[frozenBlocks.CAPACITY + 1];
+        for (int i=0; i<used.length; i++) {
+            used[i] = false;
+        }
+
+        for (Map.Entry<String, FrozenRender> entry : frozenBlocks.entrySet()) {
+            used[entry.getValue().listOffset] = true;
+        }
+
+        int list = -1;
+        for (int i=0; i<used.length; i++) {
+            if (!used[i]) {
+                list = i;
+                break;
+            }
+        }
+
+        if (list == -1) {
+            System.out.println("PickItUp: No display list available.  This shouldn't be possible.");
+            return;
+        }
+
+        FrozenRender frozen = new FrozenRender(list, Minecraft.getMinecraft().theWorld, x, y, z);
+        frozenBlocks.put(username, frozen);
     }
 
     public void doRender(double partialTick) {
@@ -72,10 +117,6 @@ public class FakeWorld implements IBlockAccess {
         // Render the block
         where = PickItUp.getHeldRenderCoords(player, (float)partialTick);
         if (where != null) {
-            if (TileEntityRenderer.instance.hasSpecialRenderer(te)) {
-                block = Block.blockNetherQuartz;
-            }
-
             // Turn the lightmap back on, so that we match the standard pathway
             // exactly.
             Minecraft.getMinecraft().entityRenderer.enableLightmap(partialTick);
@@ -97,25 +138,26 @@ public class FakeWorld implements IBlockAccess {
                 GL14.glBlendColor(0.5f, 0.5f, 0.5f, 0.5f);
             }
 
-            // Swap in our private Tessellator, so that RenderBlocks uses it.
-            Tessellator normal_tessellator = Tessellator.instance;
-            Tessellator.instance = tessellator;
+            // Check for a special renderer.
+            boolean normal_render = true;
+            if (TileEntityRenderer.instance.hasSpecialRenderer(te)) {
+                if (renderFrozen(player, where, (float)partialTick)) {
+                    // Success!  Nothing more to do here.
+                    normal_render = false;
+                } else {
+                    // Special rendering, and no frozen version available.
+                    // Just substitute in a block of quartz; it's a nice
+                    // neutral block.
+                    block = Block.blockNetherQuartz;
+                }
+            }
 
-            // Set up the Tessellator.
-            tessellator.startDrawingQuads();
-            Vec3 loc = Minecraft.getMinecraft().thePlayer.getPosition((float)partialTick);
-            tessellator.setTranslation(-loc.xCoord,
-                                                -loc.yCoord,
-                                                -loc.zCoord);
-            rb.setRenderBoundsFromBlock(block);
-
-            // Do the actual rendering.
-            rb.renderBlockByRenderType(block, where.posX, where.posY, where.posZ);
-            tessellator.draw();
+            if (normal_render) {
+                // Render it as a normal block.
+                doNormalRender(player, where, block, (float)partialTick);
+            }
 
             // Undo all the setup we did before.
-            tessellator.setTranslation(0D,0D,0D);
-            Tessellator.instance = normal_tessellator;
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             if (!was_culling) {
                 GL11.glDisable(GL11.GL_CULL_FACE);
@@ -128,6 +170,41 @@ public class FakeWorld implements IBlockAccess {
             }
             Minecraft.getMinecraft().entityRenderer.disableLightmap(partialTick);
         }
+    }
+
+    public void doNormalRender(EntityPlayer player, ChunkCoordinates where,
+                               Block block, float partialTick) {
+        // Swap in our private Tessellator, so that RenderBlocks uses it.
+        Tessellator normal_tessellator = Tessellator.instance;
+        Tessellator.instance = tessellator;
+
+        // Set up the Tessellator.
+        tessellator.startDrawingQuads();
+        Vec3 loc = Minecraft.getMinecraft().thePlayer.getPosition(partialTick);
+        tessellator.setTranslation(-loc.xCoord,
+                                            -loc.yCoord,
+                                            -loc.zCoord);
+        rb.setRenderBoundsFromBlock(block);
+
+        // Do the actual rendering.
+        rb.renderBlockByRenderType(block, where.posX, where.posY, where.posZ);
+        tessellator.draw();
+
+        // Restore the normal tessellator.
+        tessellator.setTranslation(0D,0D,0D);
+        Tessellator.instance = normal_tessellator;
+    }
+
+    public boolean renderFrozen(EntityPlayer player, ChunkCoordinates where,
+                                float partialTick) {
+        FrozenRender frozen = frozenBlocks.get(player.username);
+        if (frozen == null) {
+            return false;
+        }
+
+        frozen.renderAt(where.posX, where.posY, where.posZ, partialTick);
+
+        return true;
     }
 
     /**
@@ -288,5 +365,83 @@ public class FakeWorld implements IBlockAccess {
      */
     public boolean isBlockSolidOnSide(int x, int y, int z, ForgeDirection side, boolean _default) {
         return false;
+    }
+
+    public class FrozenRender {
+        public int listOffset;
+
+        public FrozenRender(int list, World world, int x, int y, int z) {
+            listOffset = list;
+
+            // Begin capturing the FrozenRender as a display list.
+            GL11.glNewList(glListBase + listOffset, GL11.GL_COMPILE);
+
+            // Get the correct Block and TileEntity for what we're freezing.
+            Block frozenBlock = Block.blocksList[Minecraft.getMinecraft().theWorld.getBlockId(x, y, z)];
+            TileEntity frozenTE = Minecraft.getMinecraft().theWorld.getBlockTileEntity(x, y, z);
+
+            // Grab and prime the usual RenderBlocks.
+            RenderBlocks gRB = Minecraft.getMinecraft().renderGlobal.globalRenderBlocks;
+            gRB.setRenderBoundsFromBlock(frozenBlock);
+
+            // Set up the Tessellator.
+            Tessellator.instance.setTranslation((double)-x, (double)-y, (double)-z);
+
+            for (int pass=0; pass<2; pass++) {
+                // Set the render pass.
+                ForgeHooksClient.setRenderPass(pass);
+
+                // Do the actual rendering.
+                Tessellator.instance.startDrawingQuads();
+                if (block.canRenderInPass(pass)) {
+                    gRB.renderBlockByRenderType(frozenBlock, x, y, z);
+                }
+                if (TileEntityRenderer.instance.hasSpecialRenderer(frozenTE)) {
+                    if (frozenTE.shouldRenderInPass(pass)) {
+                        TileEntityRenderer.instance.renderTileEntityAt(frozenTE, 0D, 0D, 0D, 0f);
+                    }
+                }
+                Tessellator.instance.draw();
+            }
+
+            // Capture complete!
+            ForgeHooksClient.setRenderPass(-1);
+            Tessellator.instance.setTranslation(0D,0D,0D);
+            GL11.glEndList();
+        }
+
+        public void renderAt(int x, int y, int z, float partialTick) {
+            // Save the current camera state.
+            GL11.glPushMatrix();
+
+            // Move the camera to the player's location.
+            Vec3 loc = Minecraft.getMinecraft().thePlayer.getPosition(partialTick);
+            GL11.glTranslated(-loc.xCoord, -loc.yCoord, -loc.zCoord);
+
+            // Offset by the block's location.
+            GL11.glTranslatef((float)x, (float)y, (float)z);
+
+            // Replay the frozen rendering.
+            GL11.glCallList(glListBase + listOffset);
+
+            // Restore the original camera state.
+            GL11.glPopMatrix();
+        }
+    }
+
+    public class LRU extends LinkedHashMap<String,FrozenRender> {
+        static final long serialVersionUID = 359501;
+        public final int CAPACITY;
+        public LRU(int max) {
+            super(max, 0.75F, true);
+
+            CAPACITY = max;
+        }
+
+        // Called when a new element is inserted.  A return value of true
+        // will cause the provided entry to be removed from the map.
+        protected boolean removeEldestEntry(Map.Entry<String,FrozenRender> eldest) {
+            return (size() >= CAPACITY);
+        }
     }
 }

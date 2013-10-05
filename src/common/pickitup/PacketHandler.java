@@ -7,6 +7,8 @@ import java.io.IOException;
 import cpw.mods.fml.common.network.IPacketHandler;
 import cpw.mods.fml.common.network.Player;
 
+import net.minecraft.client.multiplayer.WorldClient;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTBase;
@@ -24,27 +26,53 @@ public class PacketHandler implements IPacketHandler
      */
     @SuppressWarnings("unchecked")
     public void onPacketData(INetworkManager manager,
-                             Packet250CustomPayload packet, Player player) {
-        assert(packet.channel.equals("pickitup"));
+                             Packet250CustomPayload packet, Player fmlMe) {
+        if (!packet.channel.startsWith("piu.")) {
+            return;
+        }
 
-        EntityPlayer eplayer = (EntityPlayer) player;
-        assert(eplayer.worldObj.isRemote);
+        EntityPlayer me = (EntityPlayer) fmlMe;
+        if (!me.worldObj.isRemote) {
+            return;
+        }
 
-        ItemStack syncStack = new ItemStack(1, 0, 0);
-        try {
-            ByteArrayInputStream in = new ByteArrayInputStream(packet.data);
-            DataInputStream d_in = new DataInputStream(in);
-            NBTTagCompound tag = (NBTTagCompound) NBTBase.readNamedTag(d_in);
+        if (packet.channel.equals("piu.heldblock")) {
+            ItemStack syncStack = new ItemStack(1, 0, 0);
+            try {
+                ByteArrayInputStream in = new ByteArrayInputStream(packet.data);
+                DataInputStream d_in = new DataInputStream(in);
+                int entity_id = d_in.readInt();
+                NBTTagCompound tag = (NBTTagCompound) NBTBase.readNamedTag(d_in);
 
-            syncStack = new ItemStack(1, 0, 0);
-            syncStack.readFromNBT(tag);
-        } catch (IOException e) { }
+                syncStack = new ItemStack(1, 0, 0);
+                syncStack.readFromNBT(tag);
 
-        try {
-            eplayer.getDataWatcher().addObject(PickItUp.DW_INDEX, syncStack);
-        } catch (IllegalArgumentException e) {
-            // Already added, update it instead.
-            eplayer.getDataWatcher().updateObject(PickItUp.DW_INDEX, syncStack);
+                Entity entity = ((WorldClient) me.worldObj).getEntityByID(entity_id);
+                if (! (entity instanceof EntityPlayer)) {
+                    // Who?  Never heard of the guy.
+                    return;
+                }
+
+                EntityPlayer player = (EntityPlayer) entity;
+
+                try {
+                    player.getDataWatcher().addObject(PickItUp.DW_INDEX, syncStack);
+                } catch (IllegalArgumentException e) {
+                    // Already added, update it instead.
+                    player.getDataWatcher().updateObject(PickItUp.DW_INDEX, syncStack);
+                }
+            } catch (IOException e) { }
+        } else if (packet.channel.equals("piu.freeze")) {
+            try {
+                ByteArrayInputStream in = new ByteArrayInputStream(packet.data);
+                DataInputStream d_in = new DataInputStream(in);
+                String username = d_in.readUTF();
+                int x = d_in.readInt();
+                int y = d_in.readInt();
+                int z = d_in.readInt();
+
+                FakeWorld.freeze(username, x, y, z);
+            } catch (IOException e) { }
         }
     }
 }
