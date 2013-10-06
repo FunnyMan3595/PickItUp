@@ -11,6 +11,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.Packet250CustomPayload;
 
 public class PlayerTracker implements IPlayerTracker
@@ -41,37 +42,59 @@ public class PlayerTracker implements IPlayerTracker
 
             // Dump it.
             block_held.writeToNBT(nbt_out);
+            d_out.writeInt(player.entityId);
             NBTBase.writeNamedTag(nbt_out, d_out);
             d_out.close();
 
             try {
                 // Try to send the packet.
                 PacketDispatcher.sendPacketToPlayer(
-                    new Packet250CustomPayload("pickitup", out.toByteArray()),
+                    new Packet250CustomPayload("piu.heldblock", out.toByteArray()),
                                                (Player) player);
             } catch (IllegalArgumentException e) {
                 // The tag was too big to send, so strip out the complex data.
                 block_held.setTagCompound(null);
 
-                // Rset the output stuff.
+                // Reset the output stuff.
                 out = new ByteArrayOutputStream();
                 d_out = new DataOutputStream(out);
                 nbt_out = new NBTTagCompound();
 
                 // Rewrite the bytes.
                 block_held.writeToNBT(nbt_out);
+                d_out.writeInt(player.entityId);
                 NBTBase.writeNamedTag(nbt_out, d_out);
                 d_out.close();
 
                 // Retry the packet.
                 PacketDispatcher.sendPacketToPlayer(
-                    new Packet250CustomPayload("pickitup", out.toByteArray()),
-                                               (Player) player);
+                    new Packet250CustomPayload("piu.heldblock",
+                                               out.toByteArray()),
+                    (Player) player);
             }
         } catch (NullPointerException e) {
             // Connection not fully established yet.  Don't worry about it.
             // We'll do this again when they finish logging in.
         } catch (IOException e) {}
+    }
+
+    public static void sendFreezePacket(EntityPlayer player, int x, int y, int z) {
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            DataOutputStream d_out = new DataOutputStream(out);
+
+            d_out.writeUTF(player.username);
+            d_out.writeInt(x);
+            d_out.writeInt(y);
+            d_out.writeInt(z);
+
+            Packet packet = new Packet250CustomPayload("piu.freeze",
+                                                       out.toByteArray());
+
+            PacketDispatcher.sendPacketToAllAround(player.posX, player.posY,
+                                                   player.posZ, 160D,
+                                                   player.dimension, packet);
+        } catch (Exception e) {}
     }
 
     public void onPlayerLogin(EntityPlayer player) {

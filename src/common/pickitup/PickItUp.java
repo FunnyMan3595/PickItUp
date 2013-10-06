@@ -18,6 +18,7 @@ import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.network.NetworkMod;
 import cpw.mods.fml.common.registry.GameRegistry;
+import cpw.mods.fml.common.registry.LanguageRegistry;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.block.Block;
@@ -25,6 +26,7 @@ import net.minecraft.block.BlockHalfSlab;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.common.Configuration;
@@ -54,7 +56,7 @@ import static net.minecraftforge.event.Event.Result.*;
      version = "%conf:VERSION%")
 @NetworkMod(serverSideRequired = false,
             clientSideRequired = true,
-            channels = { "pickitup" },
+            channels = { "piu.heldblock", "piu.freeze" },
             packetHandler = pickitup.PacketHandler.class,
             //connectionHandler = pickitup.ConnectionHandler.class,
             versionBounds="%conf:VERSION_BOUNDS%")
@@ -62,10 +64,15 @@ public class PickItUp {
     public static final int DEFAULT_DW_INDEX = 27;
     public static final String DW_INDEX_DOC = "The index on EntityPlayer's DataWatcher used to store whether they are holding a block.";
     public static int DW_INDEX = DEFAULT_DW_INDEX;
+    public static final int DEFAULT_GLOVE_ID = 17975;
+
+    public static Item glove = null;
 
     public static final String DEFAULT_WHITELIST = "3-6,12,13,15,17,18,-26,22-28,29:0-5,31,32,33:0-5,35,37-46,48,50,53,54,-64,57-70,72,-79,76-88,91-93,96,98,101-109,112-118,121-126,128,130,133-136,-144,-153,139-159,170-175";
     public static final String WHITELIST_DOC = "The comma-separated list of blocks allowed to be picked up.\nThe format is [-]id[-max_id][:meta[-max_meta]], where [] denotes an optional section.\nEntries starting with - are explicit blacklists, which can be used to override later whitelist entries.  Similarly, earlier whitelist entries will override later blacklist entries.\nThe default whitelist is tuned to be fairly permissive, but not allow you to bypass major milestones like an iron pick or silk touch.\nIt also disables some problematic blocks, like lilly pads and piston heads.";
+    public static final String GLOVE_WHITELIST_DOC = "This is a secondary whitelist for the kid gloves.  When wearing the kid gloves, this will be considered before blockWhitelist, so entries here will take precedence.\nThis is particularly useful for mods like Bibliocraft that react to sneak-clicks with an empty hand.\nFormat is identical to blockWhitelist.";
     public static Vector<BlockRange> whitelist = new Vector<BlockRange>();
+    public static Vector<BlockRange> glove_whitelist = new Vector<BlockRange>();
 
     public static Vector<ISimplePickup> pickupHandlers = new Vector<ISimplePickup>();
 
@@ -97,6 +104,13 @@ public class PickItUp {
                                         // broken.
 
 
+        // Fetch the Item ID for the glove.
+        int glove_id = config.get(config.CATEGORY_ITEM,
+                                  "kidGloves",
+                                  DEFAULT_GLOVE_ID,
+                                  "Unshifted (add 256 for ingame ID)"
+                                  ).getInt(DEFAULT_GLOVE_ID);
+
         // Fetch the DataWatcher ID for the held block.
         DW_INDEX = config.get(config.CATEGORY_GENERAL,
                               "holdingBlockDataWatcherIndex",
@@ -108,6 +122,10 @@ public class PickItUp {
                                              "blockWhitelist",
                                              DEFAULT_WHITELIST,
                                              WHITELIST_DOC).getString();
+        String glove_whitelist_string = config.get(config.CATEGORY_GENERAL,
+                                                   "gloveWhitelist",
+                                                   "",
+                                                   GLOVE_WHITELIST_DOC).getString();
 
         try {
             config.save();
@@ -115,10 +133,32 @@ public class PickItUp {
             System.out.println("PickItUp: Unable to save config!");
         }
 
+        try {
+            glove = new Item(glove_id);
+            glove.setUnlocalizedName("pickitup:kidgloves");
+            glove.setCreativeTab(CreativeTabs.tabMisc);
+            GameRegistry.addRecipe(new ItemStack(glove, 1, 0),
+                                   "w w",
+                                   " s ",
+                                   'w', Block.cloth,
+                                   's', Item.silk);
+            LanguageRegistry.instance().addName(glove, "Kid Gloves");
+        } catch (Exception e) {
+            glove = null;
+            System.out.println("PickItUp: Unable to add Kid Gloves: " + e);
+        }
+
         for (String whitelist_entry : whitelist_string.split(",")) {
             BlockRange range = new BlockRange(whitelist_entry);
             if (range.valid) {
                 whitelist.add(range);
+            }
+        }
+
+        for (String whitelist_entry : glove_whitelist_string.split(",")) {
+            BlockRange range = new BlockRange(whitelist_entry);
+            if (range.valid) {
+                glove_whitelist.add(range);
             }
         }
 
@@ -177,10 +217,18 @@ public class PickItUp {
         return false;
     }
 
-    public static boolean onWhitelist(int id, int meta) {
+    public static boolean onWhitelist(int id, int meta, boolean withGloves) {
         if (id < 0 || id > Block.blocksList.length
                    || Block.blocksList[id] == null) {
             return false;
+        }
+
+        if (withGloves) {
+            for (BlockRange range : glove_whitelist) {
+                if (range.matches(id, meta)) {
+                    return range.allow;
+                }
+            }
         }
 
         for (BlockRange range : whitelist) {
@@ -316,6 +364,9 @@ public class PickItUp {
             if (block_data != null) {
                 item_tag.setCompoundTag("packed_data", block_data);
             }
+
+            // Tell all the clients to save a copy of the block's rendering.
+            PlayerTracker.sendFreezePacket(player, x, y, z);
 
             // Delete the block from the world.
             world.removeBlockTileEntity(x, y, z);
@@ -736,9 +787,17 @@ public class PickItUp {
                 return;
             }
 
-            if (event.entityPlayer.getHeldItem() != null) {
-                // They're holding an item, so let them place/use it.
-                return;
+            boolean withGloves = false;
+            ItemStack held = event.entityPlayer.getHeldItem();
+            if (held != null) {
+                if (held.itemID == glove.itemID) {
+                    // They're using kid gloves to handle it delicately.
+                    // Adjust the whitelist accordingly.
+                    withGloves = true;
+                } else {
+                    // They're holding an item, so let them place/use it.
+                    return;
+                }
             }
 
             if (!event.entityPlayer.isSneaking()) {
@@ -760,7 +819,7 @@ public class PickItUp {
             // they are sneaking.  Check to see if the block can be picked up.
             int id = event.entityPlayer.worldObj.getBlockId(event.x, event.y, event.z);
             int meta = event.entityPlayer.worldObj.getBlockMetadata(event.x, event.y, event.z);
-            if (event.entityPlayer.worldObj.isRemote || onWhitelist(id, meta)) {
+            if (event.entityPlayer.worldObj.isRemote || onWhitelist(id, meta, withGloves)) {
                 ICanBePickedUp handler = getFullHandler(id, meta);
                 if (handler != null &&
                     !handler.allowPickup(event.entityPlayer, event.x, event.y,
