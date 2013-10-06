@@ -392,16 +392,18 @@ public class FakeWorld implements IBlockAccess {
                 ForgeHooksClient.setRenderPass(pass);
 
                 // Do the actual rendering.
-                Tessellator.instance.startDrawingQuads();
                 if (block.canRenderInPass(pass)) {
+                    Tessellator.instance.startDrawingQuads();
                     gRB.renderBlockByRenderType(frozenBlock, x, y, z);
+                    Tessellator.instance.draw();
                 }
                 if (TileEntityRenderer.instance.hasSpecialRenderer(frozenTE)) {
                     if (frozenTE.shouldRenderInPass(pass)) {
+                        Tessellator.instance.startDrawingQuads();
                         TileEntityRenderer.instance.renderTileEntityAt(frozenTE, 0D, 0D, 0D, 0f);
+                        Tessellator.instance.draw();
                     }
                 }
-                Tessellator.instance.draw();
             }
 
             // Capture complete!
