@@ -11,6 +11,8 @@ import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GLAllocation;
 import net.minecraft.client.renderer.RenderBlocks;
+import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.tileentity.TileEntityRenderer;
 import net.minecraft.nbt.NBTTagCompound;
@@ -135,7 +137,7 @@ public class FakeWorld implements IBlockAccess {
             if (player == Minecraft.getMinecraft().thePlayer) {
                 GL14.glBlendColor(0.75f, 0.75f, 0.75f, 0.75f);
             } else {
-                GL14.glBlendColor(0.5f, 0.5f, 0.5f, 0.5f);
+                GL14.glBlendColor(0.75f, 0.5f, 0.5f, 0.5f);
             }
 
             // Check for a special renderer.
@@ -391,6 +393,15 @@ public class FakeWorld implements IBlockAccess {
                 // Set the render pass.
                 ForgeHooksClient.setRenderPass(pass);
 
+                // Make sure we're set up properly for drawing.
+                Minecraft.getMinecraft().renderEngine.bindTexture("/terrain.png");
+                RenderHelper.disableStandardItemLighting();
+                GL11.glColor4f(1f,1f,1f,1f);
+                GL11.glEnable(GL11.GL_BLEND);
+                GL11.glEnable(GL11.GL_ALPHA_TEST);
+                GL11.glEnable(GL11.GL_CULL_FACE);
+                GL11.glBlendFunc(GL11.GL_CONSTANT_COLOR, GL11.GL_ONE_MINUS_CONSTANT_ALPHA);
+
                 // Do the actual rendering.
                 if (block.canRenderInPass(pass)) {
                     Tessellator.instance.startDrawingQuads();
@@ -399,11 +410,22 @@ public class FakeWorld implements IBlockAccess {
                 }
                 if (TileEntityRenderer.instance.hasSpecialRenderer(frozenTE)) {
                     if (frozenTE.shouldRenderInPass(pass)) {
-                        Tessellator.instance.startDrawingQuads();
                         TileEntityRenderer.instance.renderTileEntityAt(frozenTE, 0D, 0D, 0D, 0f);
-                        Tessellator.instance.draw();
                     }
                 }
+
+                // Make sure we've cleaned up after ourselves.
+                Minecraft.getMinecraft().renderEngine.bindTexture("/terrain.png");
+                RenderHelper.disableStandardItemLighting();
+                GL11.glColor4f(1f,1f,1f,1f);
+                GL11.glEnable(GL11.GL_BLEND);
+                GL11.glEnable(GL11.GL_ALPHA_TEST);
+                GL11.glEnable(GL11.GL_CULL_FACE);
+                GL11.glBlendFunc(GL11.GL_CONSTANT_COLOR, GL11.GL_ONE_MINUS_CONSTANT_ALPHA);
+                OpenGlHelper.setClientActiveTexture(OpenGlHelper.lightmapTexUnit);
+                GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+                OpenGlHelper.setClientActiveTexture(OpenGlHelper.defaultTexUnit);
+
             }
 
             // Capture complete!
