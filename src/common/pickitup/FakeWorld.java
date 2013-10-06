@@ -137,7 +137,7 @@ public class FakeWorld implements IBlockAccess {
             if (player == Minecraft.getMinecraft().thePlayer) {
                 GL14.glBlendColor(0.75f, 0.75f, 0.75f, 0.75f);
             } else {
-                GL14.glBlendColor(0.75f, 0.5f, 0.5f, 0.5f);
+                GL14.glBlendColor(0.5f, 0.5f, 0.5f, 0.5f);
             }
 
             // Check for a special renderer.
