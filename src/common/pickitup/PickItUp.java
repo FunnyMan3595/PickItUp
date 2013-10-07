@@ -136,6 +136,7 @@ public class PickItUp {
         try {
             glove = new Item(glove_id);
             glove.setUnlocalizedName("pickitup:kidgloves");
+            glove.setTextureName("pickitup:kidgloves");
             glove.setCreativeTab(CreativeTabs.tabMisc);
             GameRegistry.addRecipe(new ItemStack(glove, 1, 0),
                                    "w w",
