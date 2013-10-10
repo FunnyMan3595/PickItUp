@@ -65,12 +65,14 @@ public class PickItUp {
     public static final String DW_INDEX_DOC = "The index on EntityPlayer's DataWatcher used to store whether they are holding a block.";
     public static int DW_INDEX = DEFAULT_DW_INDEX;
     public static final int DEFAULT_GLOVE_ID = 17975;
+    public static boolean CREATIVE_DUPING = false;
 
     public static Item glove = null;
 
     public static final String DEFAULT_WHITELIST = "3-6,12,13,15,17,18,-26,22-28,29:0-5,31,32,33:0-5,35,37-46,48,50,53,54,-64,57-70,72,-79,76-88,91-93,96,98,101-109,112-118,121-126,128,130,133-136,-144,-153,139-159,170-175";
     public static final String WHITELIST_DOC = "The comma-separated list of blocks allowed to be picked up.\nThe format is [-]id[-max_id][:meta[-max_meta]], where [] denotes an optional section.\nEntries starting with - are explicit blacklists, which can be used to override later whitelist entries.  Similarly, earlier whitelist entries will override later blacklist entries.\nThe default whitelist is tuned to be fairly permissive, but not allow you to bypass major milestones like an iron pick or silk touch.\nIt also disables some problematic blocks, like lilly pads and piston heads.";
     public static final String GLOVE_WHITELIST_DOC = "This is a secondary whitelist for the kid gloves.  When wearing the kid gloves, this will be considered before blockWhitelist, so entries here will take precedence.\nThis is particularly useful for mods like Bibliocraft that react to sneak-clicks with an empty hand.\nFormat is identical to blockWhitelist.";
+    public static final String CREATIVE_DUPING_DOC = "If true, enables special handling of Creative mode.  Sneaking will not be forced, and sneak-clicking will place a copy of your held block, allowing you to place multiple copies of it.  Pressing your drop key with an empty hand will delete your held block, without attempting to place it in the world.";
     public static Vector<BlockRange> whitelist = new Vector<BlockRange>();
     public static Vector<BlockRange> glove_whitelist = new Vector<BlockRange>();
 
@@ -126,6 +128,11 @@ public class PickItUp {
                                                    "gloveWhitelist",
                                                    "",
                                                    GLOVE_WHITELIST_DOC).getString();
+
+        CREATIVE_DUPING = config.get(config.CATEGORY_GENERAL,
+                                     "creativeDuping",
+                                     CREATIVE_DUPING,
+                                     CREATIVE_DUPING_DOC).getBoolean(CREATIVE_DUPING);
 
         try {
             config.save();
@@ -395,6 +402,7 @@ public class PickItUp {
         int id = block.getInteger("packed_id");
         int meta = block.getInteger("packed_meta");
         ItemStack fakeStack = new ItemStack(id, 1, meta);
+        boolean duping = CREATIVE_DUPING && player.capabilities.isCreativeMode;
 
         // Check to see if the player has permission to place there.
         if (player.canPlayerEdit(x, y, z, face, fakeStack)) {
@@ -424,13 +432,15 @@ public class PickItUp {
             // Check to see if the target is a valid place to put the block.
             if (allow == Boolean.TRUE) {
                 if (placeAt(block, player, x, y, z, face)) {
-                    clearBlockHeld(player);
+                    if (!duping) {
+                        clearBlockHeld(player);
+                    }
                     return;
                 }
             }
         }
 
-        if (force) {
+        if (force && !duping) {
             forcePlace(block, player);
         }
     }
@@ -439,6 +449,12 @@ public class PickItUp {
     // cube to find the best place to put it.  If no valid locations are found,
     // the block is deleted.
     public static void forcePlace(NBTTagCompound block, EntityPlayer player) {
+        boolean duping = CREATIVE_DUPING && player.capabilities.isCreativeMode;
+        if (duping) {
+            clearBlockHeld(player);
+            return;
+        }
+
         int held_id = block.getInteger("packed_id");
         int held_meta = block.getInteger("packed_meta");
         ICanBePickedUp handler = getFullHandler(held_id, held_meta);
@@ -678,6 +694,15 @@ public class PickItUp {
         return isHoldingBlock(Minecraft.getMinecraft().thePlayer);
     }
 
+    @SideOnly(Side.CLIENT)
+    public static boolean serverAllowsCreativeDuping() {
+        try {
+            return Minecraft.getMinecraft().thePlayer.getDataWatcher().getWatchableObjectItemStack(DW_INDEX).stackSize == 2;
+        } catch (NullPointerException e) {
+            return false;
+        }
+    }
+
     // Where should we render the block that's currently held?
     @SideOnly(Side.CLIENT)
     public static ChunkCoordinates getHeldRenderCoords(EntityPlayer player, float partialTick) {
@@ -726,6 +751,9 @@ public class PickItUp {
         int id = block.getInteger("packed_id");
         int meta = block.getInteger("packed_meta");
         ItemStack syncStack = new ItemStack(id, 1, meta);
+        if (CREATIVE_DUPING) {
+            syncStack.stackSize = 2;
+        }
         syncStack.setTagCompound(block);
 
         return syncStack;

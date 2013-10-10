@@ -22,13 +22,13 @@ public class HookAdder extends AdviceAdapter {
             this.sneak = this.gameSettings.keyBindSneak.pressed;
 
             into this:
-            this.sneak = this.gameSettings.keyBindSneak.pressed || ClientProxy.amIHoldingABlock();
+            this.sneak = this.gameSettings.keyBindSneak.pressed || ClientProxy.shouldForceSneak();
             */
             if (hook == Hook.FORCE_SNEAK && opcode == PUTFIELD &&
                 owner.equals("%CL:net/minecraft/util/MovementInputFromOptions%") &&
                 "%FD:net/minecraft/util/MovementInput/sneak%".endsWith("/" + name)) {
                 invokeStatic(Type.getType(client_proxy),
-                             new Method("amIHoldingABlock",
+                             new Method("shouldForceSneak",
                                         "()Z"));
                 math(OR, Type.BOOLEAN_TYPE);
                 System.out.println("Hook added!");

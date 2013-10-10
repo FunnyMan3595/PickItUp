@@ -6,7 +6,12 @@ import net.minecraft.util.Vec3;
 
 public class ClientProxy extends CommonProxy {
     // Called from the coremod's Hook.FORCE_SNEAK.
-    public static boolean amIHoldingABlock() {
+    public static boolean shouldForceSneak() {
+        if (PickItUp.serverAllowsCreativeDuping() &&
+            Minecraft.getMinecraft().thePlayer.capabilities.isCreativeMode) {
+            return false;
+        }
+
         return PickItUp.amIHoldingABlock();
     }
 
