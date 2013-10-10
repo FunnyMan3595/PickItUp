@@ -61,27 +61,33 @@ import static net.minecraftforge.event.Event.Result.*;
             //connectionHandler = pickitup.ConnectionHandler.class,
             versionBounds="%conf:VERSION_BOUNDS%")
 public class PickItUp {
-    public static final int DEFAULT_DW_INDEX = 27;
-    public static final String DW_INDEX_DOC = "The index on EntityPlayer's DataWatcher used to store whether they are holding a block.";
-    public static int DW_INDEX = DEFAULT_DW_INDEX;
-    public static final int DEFAULT_GLOVE_ID = 17975;
-    public static boolean CREATIVE_DUPING = false;
+    // --- Config settings ---
+    public static Configuration config = null;
 
+    public static final String DW_INDEX_DOC = "The index on EntityPlayer's DataWatcher used to store whether they are holding a block.";
+    public static int DW_INDEX = 27;
+
+    public static final int DEFAULT_GLOVE_ID = 17975;
     public static Item glove = null;
+
+    public static final String CREATIVE_DUPING_DOC = "If true, enables special handling of Creative mode.  Sneaking will not be forced, and sneak-clicking will place a copy of your held block, allowing you to place multiple copies of it.  Pressing your drop key with an empty hand will delete your held block, without attempting to place it in the world.";
+    public static boolean CREATIVE_DUPING = false;
 
     public static final String DEFAULT_WHITELIST = "3-6,12,13,15,17,18,-26,22-28,29:0-5,31,32,33:0-5,35,37-46,48,50,53,54,-64,57-70,72,-79,76-88,91-93,96,98,101-109,112-118,121-126,128,130,133-136,-144,-153,139-159,170-175";
     public static final String WHITELIST_DOC = "The comma-separated list of blocks allowed to be picked up.\nThe format is [-]id[-max_id][:meta[-max_meta]], where [] denotes an optional section.\nEntries starting with - are explicit blacklists, which can be used to override later whitelist entries.  Similarly, earlier whitelist entries will override later blacklist entries.\nThe default whitelist is tuned to be fairly permissive, but not allow you to bypass major milestones like an iron pick or silk touch.\nIt also disables some problematic blocks, like lilly pads and piston heads.";
-    public static final String GLOVE_WHITELIST_DOC = "This is a secondary whitelist for the kid gloves.  When wearing the kid gloves, this will be considered before blockWhitelist, so entries here will take precedence.\nThis is particularly useful for mods like Bibliocraft that react to sneak-clicks with an empty hand.\nFormat is identical to blockWhitelist.";
-    public static final String CREATIVE_DUPING_DOC = "If true, enables special handling of Creative mode.  Sneaking will not be forced, and sneak-clicking will place a copy of your held block, allowing you to place multiple copies of it.  Pressing your drop key with an empty hand will delete your held block, without attempting to place it in the world.";
     public static Vector<BlockRange> whitelist = new Vector<BlockRange>();
+
+    public static final String GLOVE_WHITELIST_DOC = "This is a secondary whitelist for the kid gloves.  When wearing the kid gloves, this will be considered before blockWhitelist, so entries here will take precedence.\nThis is particularly useful for mods like Bibliocraft that react to sneak-clicks with an empty hand.\nFormat is identical to blockWhitelist.";
     public static Vector<BlockRange> glove_whitelist = new Vector<BlockRange>();
 
+
+    // The handlers used for special blocks.
     public static Vector<ISimplePickup> pickupHandlers = new Vector<ISimplePickup>();
 
+    // The tag used in the player's persisted data.
     public static final String HELD_TAG = "PickItUp_held";
 
-    public static Configuration config = null;
-
+    // If available, BetterStorage's getBackpack method.
     public static Method getBackpack = null;
 
     @SidedProxy(clientSide="pickitup.ClientProxy",
@@ -116,8 +122,8 @@ public class PickItUp {
         // Fetch the DataWatcher ID for the held block.
         DW_INDEX = config.get(config.CATEGORY_GENERAL,
                               "holdingBlockDataWatcherIndex",
-                              DEFAULT_DW_INDEX,
-                              DW_INDEX_DOC).getInt(DEFAULT_DW_INDEX);
+                              DW_INDEX,
+                              DW_INDEX_DOC).getInt(DW_INDEX);
 
         // Fetch the whitelist.
         String whitelist_string = config.get(config.CATEGORY_GENERAL,
